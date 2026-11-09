@@ -1,0 +1,11 @@
+src/**
+tests/**
+node_modules/**
+tsconfig.json
+.gitignore
+*.vsix
+out/test/**
+.planning/**
+.github/**
+docs/**
+**/.DS_Store

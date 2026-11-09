@@ -1,0 +1,177 @@
+{
+  "name": "claude-comptes",
+  "displayName": "Comptes Claude",
+  "description": "Two Claude Code accounts side by side in VS Code on macOS: one account per window, both accounts' usage in one panel, conversations movable between accounts.",
+  "version": "0.2.0",
+  "publisher": "alexdmrx",
+  "author": "Alexis Demarecaux",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexdmrx/claude-comptes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alexdmrx/claude-comptes/issues"
+  },
+  "homepage": "https://github.com/alexdmrx/claude-comptes#readme",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "*"
+  ],
+  "extensionDependencies": [],
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "test": "npm run compile && node --test \"out/test/*.test.js\" && sh tests/lanceur.test.sh",
+    "package": "npm run compile && npx --yes @vscode/vsce@3 package -o claude-comptes.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.94.0",
+    "typescript": "^5.6.0"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeComptes",
+          "title": "Comptes Claude",
+          "icon": "resources/icone.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeComptes": [
+        {
+          "id": "claudeComptes.panneau",
+          "name": "Comptes",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claudeComptes.choisirCompte",
+        "title": "Comptes Claude : choisir le compte de cette fenêtre"
+      },
+      {
+        "command": "claudeComptes.actualiser",
+        "title": "Comptes Claude : actualiser les quotas"
+      },
+      {
+        "command": "claudeComptes.activer",
+        "title": "Comptes Claude : activer"
+      },
+      {
+        "command": "claudeComptes.desactiver",
+        "title": "Comptes Claude : tout désactiver"
+      },
+      {
+        "command": "claudeComptes.seConnecter",
+        "title": "Comptes Claude : connecter un compte"
+      },
+      {
+        "command": "claudeComptes.reprendre",
+        "title": "Comptes Claude : reprendre une conversation sur un compte"
+      },
+      {
+        "command": "claudeComptes.reprendreRelais",
+        "title": "Comptes Claude : reprendre une note de relais sur un compte"
+      },
+      {
+        "command": "claudeComptes.bulleA",
+        "title": "Comptes Claude : cet onglet est sur le compte A",
+        "icon": {
+          "light": "resources/bulle-A-light.svg",
+          "dark": "resources/bulle-A-dark.svg"
+        }
+      },
+      {
+        "command": "claudeComptes.bulleB",
+        "title": "Comptes Claude : cet onglet est sur le compte B",
+        "icon": {
+          "light": "resources/bulle-B-light.svg",
+          "dark": "resources/bulle-B-dark.svg"
+        }
+      },
+      {
+        "command": "claudeComptes.bulleInconnu",
+        "title": "Comptes Claude : compte de cet onglet incertain",
+        "icon": {
+          "light": "resources/bulle-inconnu-light.svg",
+          "dark": "resources/bulle-inconnu-dark.svg"
+        }
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "claudeComptes.reprendre",
+          "when": "false"
+        },
+        {
+          "command": "claudeComptes.reprendreRelais",
+          "when": "false"
+        },
+        {
+          "command": "claudeComptes.bulleA",
+          "when": "false"
+        },
+        {
+          "command": "claudeComptes.bulleB",
+          "when": "false"
+        },
+        {
+          "command": "claudeComptes.bulleInconnu",
+          "when": "false"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "claudeComptes.bulleA",
+          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && claudeComptes.ongletCompte == 'A'",
+          "group": "navigation"
+        },
+        {
+          "command": "claudeComptes.bulleB",
+          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && claudeComptes.ongletCompte == 'B'",
+          "group": "navigation"
+        },
+        {
+          "command": "claudeComptes.bulleInconnu",
+          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && claudeComptes.ongletCompte == '?'",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "claudeComptes.bulleA",
+          "when": "view == claudeVSCodeSidebarSecondary && claudeComptes.compteFenetre == 'A'",
+          "group": "navigation"
+        },
+        {
+          "command": "claudeComptes.bulleB",
+          "when": "view == claudeVSCodeSidebarSecondary && claudeComptes.compteFenetre == 'B'",
+          "group": "navigation"
+        },
+        {
+          "command": "claudeComptes.bulleA",
+          "when": "view == claudeVSCodeSidebar && claudeComptes.compteFenetre == 'A'",
+          "group": "navigation"
+        },
+        {
+          "command": "claudeComptes.bulleB",
+          "when": "view == claudeVSCodeSidebar && claudeComptes.compteFenetre == 'B'",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}
