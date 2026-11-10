@@ -1,0 +1,15 @@
+{
+  "viewsContainer.title": "Twinseat",
+  "view.panneau.name": "Accounts",
+  "command.choisirCompte.title": "Twinseat: Choose this window's account",
+  "command.actualiser.title": "Twinseat: Refresh usage",
+  "command.activer.title": "Twinseat: Enable",
+  "command.desactiver.title": "Twinseat: Disable everything",
+  "command.seConnecter.title": "Twinseat: Sign in to an account",
+  "command.ajouterAlias.title": "Twinseat: Add claude-a / claude-b shell aliases",
+  "command.reprendre.title": "Twinseat: Resume a conversation on an account",
+  "command.reprendreRelais.title": "Twinseat: Resume a handoff note on an account",
+  "command.bulleA.title": "Twinseat: This tab is on account A",
+  "command.bulleB.title": "Twinseat: This tab is on account B",
+  "command.bulleInconnu.title": "Twinseat: This tab's account is uncertain"
+}

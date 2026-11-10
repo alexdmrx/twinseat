@@ -123,22 +123,59 @@ export function infosCompte(c: "A" | "B", home = os.homedir()): { connecte: bool
   return { connecte: Boolean(oauth), email };
 }
 
-const DEBUT_ALIAS = "# >>> Comptes Claude (claude-a / claude-b) >>>";
-const FIN_ALIAS = "# <<< Comptes Claude <<<";
+// --- Alias de shell (claude-a / claude-b) : seulement sur demande -----------------
+// Rien ici n'est appelé à l'activation : la commande « Add shell aliases » le fait,
+// après une confirmation qui nomme le fichier.
 
-/** Ajoute claude-a / claude-b à ~/.zshrc, une seule fois. */
-export function ajouterAlias(home = os.homedir()): boolean {
-  const zshrc = path.join(home, ".zshrc");
-  const actuel = fs.existsSync(zshrc) ? fs.readFileSync(zshrc, "utf8") : "";
-  if (actuel.includes(DEBUT_ALIAS)) return false;
-  const bloc = [
-    "",
-    DEBUT_ALIAS,
-    `alias claude-a='CLAUDE_CONFIG_DIR="$HOME/.claude/comptes/A" claude'`,
-    `alias claude-b='CLAUDE_CONFIG_DIR="$HOME/.claude/comptes/B" claude'`,
-    FIN_ALIAS,
-    "",
-  ].join("\n");
-  fs.appendFileSync(zshrc, bloc);
+export type Shell = "zsh" | "bash";
+
+const DEBUT_ALIAS = "# >>> Twinseat (claude-a / claude-b) >>>";
+const FIN_ALIAS = "# <<< Twinseat <<<";
+// Le bloc écrit par la version 0.2 (avant le nom Twinseat) compte comme déjà présent.
+const ANCIEN_DEBUT_ALIAS = /^# >>> Comptes\sClaude \(claude-a \/ claude-b\) >>>$/m;
+
+export const LIGNES_ALIAS: readonly string[] = [
+  `alias claude-a='CLAUDE_CONFIG_DIR="$HOME/.claude/comptes/A" claude'`,
+  `alias claude-b='CLAUDE_CONFIG_DIR="$HOME/.claude/comptes/B" claude'`,
+];
+
+/** Shell d'après $SHELL (le nom du programme, pas le chemin) ; undefined si ni zsh ni bash. */
+export function detecterShell(valeurShell: string | undefined): Shell | undefined {
+  const nom = path.basename(valeurShell ?? "");
+  return nom === "zsh" || nom === "bash" ? nom : undefined;
+}
+
+/** Fichier de démarrage où le bloc d'alias s'écrit : ~/.zshrc (zsh) ou ~/.bashrc (bash). */
+export function fichierShell(shell: Shell, home = os.homedir()): string {
+  return path.join(home, shell === "zsh" ? ".zshrc" : ".bashrc");
+}
+
+/** Le bloc d'alias est-il déjà dans ce fichier ? (absent = non) */
+export function aliasPresents(fichier: string): boolean {
+  try {
+    const actuel = fs.readFileSync(fichier, "utf8");
+    return actuel.includes(DEBUT_ALIAS) || ANCIEN_DEBUT_ALIAS.test(actuel);
+  } catch {
+    return false;
+  }
+}
+
+/** Ajoute claude-a / claude-b à ce fichier (créé s'il manque), une seule fois. false = déjà là. */
+export function ajouterAlias(fichier: string): boolean {
+  if (aliasPresents(fichier)) return false;
+  const bloc = ["", DEBUT_ALIAS, ...LIGNES_ALIAS, FIN_ALIAS, ""].join("\n");
+  fs.appendFileSync(fichier, bloc);
   return true;
+}
+
+export type PlanAlias =
+  | { action: "ecrire"; shell: Shell; fichier: string; dejaFait: boolean }
+  | { action: "copier"; lignes: readonly string[] };
+
+/** Que faire pour ce shell ? N'écrit jamais : l'appelant demande confirmation, puis appelle ajouterAlias. */
+export function planAlias(valeurShell: string | undefined, home = os.homedir()): PlanAlias {
+  const shell = detecterShell(valeurShell);
+  if (!shell) return { action: "copier", lignes: LIGNES_ALIAS };
+  const fichier = fichierShell(shell, home);
+  return { action: "ecrire", shell, fichier, dejaFait: aliasPresents(fichier) };
 }

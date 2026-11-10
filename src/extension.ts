@@ -2,15 +2,17 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { proposerAlias } from "./alias";
 import { cheminLanceur, Compte, COMPTES, autreCompte, dossierCompte, estCompte, estNumeroConversation, sousDossier } from "./chemins";
 import { libelleQuota, phraseAlerte } from "./format";
-import { ajouterAlias, infosCompte, installer } from "./installation";
+import { infosCompte, installer } from "./installation";
 import { journal, ouvrirJournal } from "./journal";
 import { demarrerOnglets } from "./onglets";
 import { Panneau } from "./panneau";
 import { auSeuil, demanderQuotas, derniersQuotas, enregistrerQuotas, prendreVerrou, rendreVerrou } from "./quotas";
 import { conversationsVivantes, ecrireCompte, nettoyerRegistre, titreConversation, trouverHistorique } from "./registre";
 import { estNomNote, jetonsContexte, jetonsTexte, lireFin, marquerAlerteContexte, nettoyerAlertesContexte, SEUIL_CONTEXTE } from "./relais";
+import { definirLangue, t } from "./textes";
 import {
   compteFenetre, compteInitial, definirCompte, demanderCompte, etatLanceur, initFenetre,
   majActivation, oublierFenetre, quandCompteChange, REGLAGE_LANCEUR,
@@ -31,6 +33,8 @@ const entreGuillemets = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 const deuxConnectes = () => COMPTES.every((c) => infosCompte(c).connecte);
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Avant tout texte visible : la langue de VS Code choisit l'anglais ou le français.
+  definirLangue(vscode.env.language);
   // Synchrone, avant tout le reste : les onglets Claude restaurés démarrent tôt.
   process.env.CLAUDE_COMPTE_FENETRE = compteInitial();
 
@@ -61,14 +65,6 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   }, 120_000);
   context.subscriptions.push({ dispose: () => clearTimeout(nettoyage) });
-  if (!gs.get<boolean>("alias-ajoutes")) {
-    void gs.update("alias-ajoutes", true);
-    try {
-      if (ajouterAlias()) void vscode.window.showInformationMessage("Raccourcis claude-a et claude-b ajoutés à ~/.zshrc.");
-    } catch (e) {
-      journal(`alias : ${(e as Error).message}`);
-    }
-  }
 
   // --- Barre d'état ---------------------------------------------------------
   const barre = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -76,8 +72,11 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(barre);
   const majBarre = () => {
     if (etatLanceur() !== "actif") return barre.hide();
-    barre.text = `$(account) Claude : ${compteFenetre()}`;
-    barre.tooltip = [...COMPTES.map((c) => `Compte ${c} — ${libelleQuota(derniersQuotas(c))}`), "Cliquer pour changer le compte de cette fenêtre"].join("\n");
+    barre.text = t("barre.texte", { compte: compteFenetre() });
+    barre.tooltip = [
+      ...COMPTES.map((c) => `${t("compte.nom", { compte: c })} — ${libelleQuota(derniersQuotas(c))}`),
+      t("barre.infobulle"),
+    ].join("\n");
     barre.show();
   };
 
@@ -99,23 +98,23 @@ export function activate(context: vscode.ExtensionContext): void {
     if (present && present !== cheminLanceur()) {
       if (gs.get<string>("avertissement-lanceur") !== present || manuel) {
         void gs.update("avertissement-lanceur", present);
-        void vscode.window.showWarningMessage("Un autre lanceur est déjà réglé dans Claude Code : Comptes Claude n'a rien changé.");
+        void vscode.window.showWarningMessage(t("lanceur.autre"));
       }
       return;
     }
     if (present === cheminLanceur()) return;
     if (!deuxConnectes()) {
-      if (manuel) void vscode.window.showInformationMessage("Connectez d'abord les deux comptes (panneau « Comptes Claude »).");
+      if (manuel) void vscode.window.showInformationMessage(t("activer.connecterDabord"));
       return;
     }
     try {
       await reglage.update(REGLAGE_LANCEUR, cheminLanceur(), vscode.ConfigurationTarget.Global);
       await gs.update("desactive", false);
       journal("lanceur activé");
-      void vscode.window.showInformationMessage("Comptes Claude est actif : chaque fenêtre a maintenant son compte.");
+      void vscode.window.showInformationMessage(t("activer.ok"));
     } catch (e) {
       journal(`réglage du lanceur impossible : ${(e as Error).message}`);
-      void vscode.window.showWarningMessage("Impossible de régler le lanceur dans les réglages VS Code.");
+      void vscode.window.showWarningMessage(t("activer.echec"));
     }
   };
 
@@ -124,10 +123,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const dernierEchec: Record<Compte, number> = { A: 0, B: 0 };
   const alertes = new Set<string>();
 
-  const COPIER_RELAIS = "Copier /relais";
+  const COPIER_RELAIS = t("relais.copier");
   const copierRelais = async (): Promise<void> => {
     await vscode.env.clipboard.writeText("/relais");
-    void vscode.window.showInformationMessage("« /relais » copié : collez-le dans la conversation en cours.");
+    void vscode.window.showInformationMessage(t("relais.copie"));
   };
 
   const verifierAlerte = () => {
@@ -140,8 +139,8 @@ export function activate(context: vscode.ExtensionContext): void {
     if (alertes.has(cle)) return;
     alertes.add(cle);
     const autre = autreCompte(c);
-    const bascule = `Passer cette fenêtre sur ${autre}`;
-    const voir = "Voir les comptes";
+    const bascule = t("alerte.basculer", { compte: autre });
+    const voir = t("alerte.voir");
     void vscode.window.showWarningMessage(phraseAlerte(c, s.pct, s.limite, s.reset), bascule, voir, COPIER_RELAIS).then((choix) => {
       if (choix === bascule) definirCompte(autre, { initial: false });
       else if (choix === COPIER_RELAIS) void copierRelais();
@@ -165,7 +164,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const binaire = binaireClaude();
     if (!binaire) {
       journal("quotas : binaire de Claude introuvable");
-      if (force) void vscode.window.showWarningMessage("Claude Code est introuvable : impossible de relever les quotas.");
+      if (force) void vscode.window.showWarningMessage(t("releve.introuvable"));
       return;
     }
     let verrou = false;
@@ -175,7 +174,7 @@ export function activate(context: vscode.ExtensionContext): void {
       journal(`verrou : ${(e as Error).message}`);
     }
     if (!verrou) {
-      if (force) void vscode.window.showInformationMessage("Un relevé est déjà en cours dans une autre fenêtre.");
+      if (force) void vscode.window.showInformationMessage(t("releve.enCours"));
       return;
     }
     releveEnCours = true;
@@ -233,10 +232,10 @@ export function activate(context: vscode.ExtensionContext): void {
         const jetons = fin === undefined ? undefined : jetonsContexte(fin);
         if (jetons === undefined || jetons < SEUIL_CONTEXTE) continue;
         if (!marquerAlerteContexte(id)) continue; // déjà signalée (cette fenêtre ou une autre)
-        const titre = (f && titreConversation(f)) ?? "Conversation sans titre";
+        const titre = (f && titreConversation(f)) ?? t("contexte.sansTitre");
         void vscode.window
           .showWarningMessage(
-            `La conversation « ${titre} » est longue (≈ ${jetonsTexte(jetons)} jetons). Pensez à /relais avant qu'elle ne soit compactée.`,
+            t("contexte.longue", { titre, jetons: jetonsTexte(jetons) }),
             COPIER_RELAIS,
           )
           .then((choix) => {
@@ -271,7 +270,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   cmd("choisirCompte", async (arg) => {
     if (etatLanceur() !== "actif") {
-      void vscode.window.showInformationMessage("Comptes Claude n'est pas actif : connectez les deux comptes, puis cliquez sur « Activer » dans le panneau.");
+      void vscode.window.showInformationMessage(t("choisir.inactif"));
       return;
     }
     if (estCompte(arg)) definirCompte(arg, { initial: false });
@@ -295,29 +294,30 @@ export function activate(context: vscode.ExtensionContext): void {
     barre.hide();
     journal("tout désactivé");
     void panneau.rafraichir();
-    void vscode.window.showInformationMessage(
-      "Désactivé : Claude utilise de nouveau la connexion d'origine. Les dossiers ~/.claude/comptes restent en place.",
-    );
+    void vscode.window.showInformationMessage(t("desactiver.ok"));
   });
   cmd("seConnecter", async (arg) => {
     let c: Compte | undefined = estCompte(arg) ? arg : undefined;
     if (!c) {
-      const p = await vscode.window.showQuickPick(["Compte A", "Compte B"], { title: "Quel compte connecter ?" });
-      c = p === "Compte A" ? "A" : p === "Compte B" ? "B" : undefined;
+      const p = await vscode.window.showQuickPick(
+        COMPTES.map((x) => ({ label: t("compte.nom", { compte: x }), compte: x })),
+        { title: t("connecter.titre") },
+      );
+      c = p?.compte;
     }
     if (!c) return;
     const binaire = binaireClaude();
     if (!binaire) {
-      void vscode.window.showWarningMessage("Claude Code est introuvable : impossible de lancer la connexion.");
+      void vscode.window.showWarningMessage(t("connecter.introuvable"));
       return;
     }
     const dossier = dossierCompte(c);
-    const t = vscode.window.createTerminal({ name: `Connexion compte ${c}`, env: { CLAUDE_CONFIG_DIR: dossier } });
-    t.show();
+    const terminal = vscode.window.createTerminal({ name: t("connecter.terminal", { compte: c }), env: { CLAUDE_CONFIG_DIR: dossier } });
+    terminal.show();
     // Le dossier est aussi posé en tête de commande : la variable des terminaux
     // de la fenêtre (compte de la fenêtre) ne doit pas prendre le dessus.
-    t.sendText(`CLAUDE_CONFIG_DIR=${entreGuillemets(dossier)} ${entreGuillemets(binaire)} auth login`);
-    void vscode.window.showInformationMessage("Le navigateur va s'ouvrir : vérifiez que claude.ai y est connecté au bon compte (fenêtre privée sinon).");
+    terminal.sendText(`CLAUDE_CONFIG_DIR=${entreGuillemets(dossier)} ${entreGuillemets(binaire)} auth login`);
+    void vscode.window.showInformationMessage(t("connecter.navigateur"));
   });
   cmd("reprendre", async (id, compte) => {
     if (!estNumeroConversation(id) || !estCompte(compte)) return;
@@ -325,18 +325,14 @@ export function activate(context: vscode.ExtensionContext): void {
     let essais = 0;
     while (await ouverte()) {
       if (essais >= 3) {
-        void vscode.window.showWarningMessage("Toujours ouverte : rien n'a été changé.");
+        void vscode.window.showWarningMessage(t("reprendre.toujours"));
         return;
       }
       essais++;
-      const ok = "C'est fait";
-      const r = await vscode.window.showWarningMessage(
-        "Cette conversation est encore ouverte dans un onglet. Fermez cet onglet, puis cliquez sur « C'est fait ».",
-        { modal: true },
-        ok,
-      );
+      const ok = t("reprendre.fait");
+      const r = await vscode.window.showWarningMessage(t("reprendre.fermer"), { modal: true }, ok);
       if (r !== ok) {
-        void vscode.window.showInformationMessage("Rien n'a été changé.");
+        void vscode.window.showInformationMessage(t("rienChange"));
         return;
       }
       await new Promise((r2) => setTimeout(r2, 1200)); // le temps que le processus s'arrête
@@ -344,7 +340,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ecrireCompte(id, compte);
     journal(`reprise de ${id} sur ${compte}`);
     await vscode.commands.executeCommand("claude-vscode.editor.open", id);
-    void vscode.window.showInformationMessage(`Conversation rouverte sur le compte ${compte}.`);
+    void vscode.window.showInformationMessage(t("reprendre.ok", { compte }));
   });
   cmd("reprendreRelais", async (compte, note) => {
     if (!estCompte(compte)) return;
@@ -357,10 +353,9 @@ export function activate(context: vscode.ExtensionContext): void {
     } catch (e) {
       journal(`relais : ouverture impossible (${(e as Error).message})`);
     }
-    void vscode.window.showInformationMessage(
-      `Nouvelle conversation sur le compte ${compte} : si « ${texte} » n'est pas déjà tapé, collez-le (il est copié).`,
-    );
+    void vscode.window.showInformationMessage(t("relais.reprise", { compte, texte }));
   });
+  cmd("ajouterAlias", proposerAlias);
   const focus = () => vscode.commands.executeCommand("claudeComptes.panneau.focus");
   cmd("bulleA", focus);
   cmd("bulleB", focus);

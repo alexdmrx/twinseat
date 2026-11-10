@@ -74,7 +74,7 @@ occupant=$!
 sleep 0.3
 if pgrep -f -- "-(resume|session-id)=$id2" >/dev/null; then
   s=$(lance sh "$LANCEUR" "$FAUX" --output-format stream-json "--resume=$id2" 2>&1)
-  verifie "double ouverture refusée" "déjà ouverte" "$s"
+  verifie "double ouverture refusée" "Twinseat: this conversation is already open in another tab. Close that tab, then reopen it." "$s"
 else
   echo "ÉCHEC - essai 9 impossible : exec -a indisponible dans ce shell"
   echecs=$((echecs + 1))
@@ -116,7 +116,7 @@ sh -c 'exec -a "claude-test --resume $1" sleep 30' _ "$id5" 2>/dev/null &
 occupant=$!
 sleep 0.3
 s=$(lance sh "$LANCEUR" "$FAUX" --output-format stream-json --resume "$id5" 2>&1)
-verifie "double ouverture (forme espace) refusée" "déjà ouverte" "$s"
+verifie "double ouverture (forme espace) refusée" "already open in another tab" "$s"
 kill "$occupant" 2>/dev/null
 
 # 10. Sans dossier des comptes : Claude tel quel.

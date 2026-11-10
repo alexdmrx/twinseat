@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lanceur « Comptes Claude ».
+# Lanceur Twinseat.
 # L'extension Claude Code l'appelle à chaque démarrage de Claude :
 #   lanceur <binaire-claude> <arguments...>
 # Il choisit le compte (A ou B), puis lance Claude avec CLAUDE_CONFIG_DIR.
@@ -102,7 +102,7 @@ if [ "$mode" = "session" ] && [ -n "$id_reprise" ] && [ "$copie" = 0 ]; then
     essais=$((essais + 1))
     if [ "$essais" -gt 6 ]; then
       journal "$compte" "refus" "$id_reprise"
-      echo "Comptes Claude : cette conversation est déjà ouverte dans un autre onglet. Fermez cet autre onglet, puis rouvrez-la." >&2
+      echo "Twinseat: this conversation is already open in another tab. Close that tab, then reopen it." >&2
       exit 1
     fi
     sleep 0.5

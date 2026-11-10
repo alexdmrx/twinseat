@@ -1,36 +1,50 @@
 {
-  "name": "claude-comptes",
-  "displayName": "Comptes Claude",
-  "description": "Two Claude Code accounts side by side in VS Code on macOS: one account per window, both accounts' usage in one panel, conversations movable between accounts.",
-  "version": "0.2.0",
+  "name": "twinseat",
+  "displayName": "Twinseat",
+  "description": "Two Claude Code accounts side by side in VS Code: one account per window, the account follows the project, both accounts' usage in one panel. macOS.",
+  "version": "0.3.0",
+  "preview": true,
   "publisher": "alexdmrx",
   "author": "Alexis Demarecaux",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexdmrx/claude-comptes.git"
+    "url": "https://github.com/alexdmrx/twinseat.git"
   },
   "bugs": {
-    "url": "https://github.com/alexdmrx/claude-comptes/issues"
+    "url": "https://github.com/alexdmrx/twinseat/issues"
   },
-  "homepage": "https://github.com/alexdmrx/claude-comptes#readme",
+  "homepage": "https://github.com/alexdmrx/twinseat",
   "private": true,
   "license": "MIT",
   "engines": {
     "vscode": "^1.94.0"
   },
   "categories": [
+    "AI",
     "Other"
   ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "accounts",
+    "multi-account",
+    "work",
+    "personal",
+    "usage"
+  ],
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
   "main": "./out/extension.js",
   "activationEvents": [
     "*"
   ],
-  "extensionDependencies": [],
   "scripts": {
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
     "test": "npm run compile && node --test \"out/test/*.test.js\" && sh tests/lanceur.test.sh",
-    "package": "npm run compile && npx --yes @vscode/vsce@3 package -o claude-comptes.vsix"
+    "package": "npm run compile && npx --yes @vscode/vsce@3 package --allow-star-activation -o twinseat.vsix"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -42,7 +56,7 @@
       "activitybar": [
         {
           "id": "claudeComptes",
-          "title": "Comptes Claude",
+          "title": "%viewsContainer.title%",
           "icon": "resources/icone.svg"
         }
       ]
@@ -51,7 +65,7 @@
       "claudeComptes": [
         {
           "id": "claudeComptes.panneau",
-          "name": "Comptes",
+          "name": "%view.panneau.name%",
           "type": "webview"
         }
       ]
@@ -59,35 +73,39 @@
     "commands": [
       {
         "command": "claudeComptes.choisirCompte",
-        "title": "Comptes Claude : choisir le compte de cette fenêtre"
+        "title": "%command.choisirCompte.title%"
       },
       {
         "command": "claudeComptes.actualiser",
-        "title": "Comptes Claude : actualiser les quotas"
+        "title": "%command.actualiser.title%"
       },
       {
         "command": "claudeComptes.activer",
-        "title": "Comptes Claude : activer"
+        "title": "%command.activer.title%"
       },
       {
         "command": "claudeComptes.desactiver",
-        "title": "Comptes Claude : tout désactiver"
+        "title": "%command.desactiver.title%"
       },
       {
         "command": "claudeComptes.seConnecter",
-        "title": "Comptes Claude : connecter un compte"
+        "title": "%command.seConnecter.title%"
+      },
+      {
+        "command": "claudeComptes.ajouterAlias",
+        "title": "%command.ajouterAlias.title%"
       },
       {
         "command": "claudeComptes.reprendre",
-        "title": "Comptes Claude : reprendre une conversation sur un compte"
+        "title": "%command.reprendre.title%"
       },
       {
         "command": "claudeComptes.reprendreRelais",
-        "title": "Comptes Claude : reprendre une note de relais sur un compte"
+        "title": "%command.reprendreRelais.title%"
       },
       {
         "command": "claudeComptes.bulleA",
-        "title": "Comptes Claude : cet onglet est sur le compte A",
+        "title": "%command.bulleA.title%",
         "icon": {
           "light": "resources/bulle-A-light.svg",
           "dark": "resources/bulle-A-dark.svg"
@@ -95,7 +113,7 @@
       },
       {
         "command": "claudeComptes.bulleB",
-        "title": "Comptes Claude : cet onglet est sur le compte B",
+        "title": "%command.bulleB.title%",
         "icon": {
           "light": "resources/bulle-B-light.svg",
           "dark": "resources/bulle-B-dark.svg"
@@ -103,7 +121,7 @@
       },
       {
         "command": "claudeComptes.bulleInconnu",
-        "title": "Comptes Claude : compte de cet onglet incertain",
+        "title": "%command.bulleInconnu.title%",
         "icon": {
           "light": "resources/bulle-inconnu-light.svg",
           "dark": "resources/bulle-inconnu-dark.svg"

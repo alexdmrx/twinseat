@@ -1,0 +1,15 @@
+{
+  "viewsContainer.title": "Twinseat",
+  "view.panneau.name": "Comptes",
+  "command.choisirCompte.title": "Twinseat : choisir le compte de cette fenêtre",
+  "command.actualiser.title": "Twinseat : actualiser les quotas",
+  "command.activer.title": "Twinseat : activer",
+  "command.desactiver.title": "Twinseat : tout désactiver",
+  "command.seConnecter.title": "Twinseat : connecter un compte",
+  "command.ajouterAlias.title": "Twinseat : ajouter les alias shell claude-a / claude-b",
+  "command.reprendre.title": "Twinseat : reprendre une conversation sur un compte",
+  "command.reprendreRelais.title": "Twinseat : reprendre une note de relais sur un compte",
+  "command.bulleA.title": "Twinseat : cet onglet est sur le compte A",
+  "command.bulleB.title": "Twinseat : cet onglet est sur le compte B",
+  "command.bulleInconnu.title": "Twinseat : compte de cet onglet incertain"
+}

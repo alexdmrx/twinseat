@@ -2,6 +2,7 @@
 import { Compte } from "./chemins";
 import { Quotas } from "./quotas";
 import { titreOnglet } from "./registre";
+import { heure, liste, t } from "./textes";
 
 export type Niveau = "normal" | "attention" | "critique";
 
@@ -16,65 +17,67 @@ export const VARIABLE_NIVEAU: Record<Niveau, string> = {
   critique: "--vscode-charts-red",
 };
 
+/** « 62 % » (fr) ou « 62% » (en). */
 export function pourcent(pct: number): string {
-  return `${Math.round(pct)} %`;
+  return t("fmt.pourcent", { n: Math.round(pct) });
 }
 
-const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-
-/** « à 16 h 39 », « demain à 9 h 05 », « lundi à 16 h 39 » (heure locale). Rien si passé. */
+/** « at 16:39 », « tomorrow at 09:05 », « Monday at 16:39 » (en) ; « à 16 h 39 », « demain à 9 h 05 » (fr). Heure locale. Rien si passé. */
 export function momentLocal(iso: string, maintenant = Date.now()): string | undefined {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t) || t <= maintenant) return undefined;
-  const d = new Date(t);
+  const instant = Date.parse(iso);
+  if (!Number.isFinite(instant) || instant <= maintenant) return undefined;
+  const d = new Date(instant);
   const n = new Date(maintenant);
-  const h = `${d.getHours()} h ${String(d.getMinutes()).padStart(2, "0")}`;
+  const h = heure(d.getHours(), d.getMinutes());
   const jour = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const ecart = Math.round((jour(d) - jour(n)) / 86_400_000);
-  if (ecart <= 0) return `à ${h}`;
-  if (ecart === 1) return `demain à ${h}`;
-  if (ecart < 7) return `${JOURS[d.getDay()]} à ${h}`;
-  return `le ${d.getDate()}/${d.getMonth() + 1} à ${h}`;
+  if (ecart <= 0) return t("moment.aujourdhui", { heure: h });
+  if (ecart === 1) return t("moment.demain", { heure: h });
+  if (ecart < 7) return t("moment.jour", { jour: liste("jours")[d.getDay()], heure: h });
+  return t("moment.date", { jour: d.getDate(), mois: liste("mois")[d.getMonth()], heure: h });
 }
 
 export function phraseRetour(iso: string | undefined, maintenant = Date.now()): string | undefined {
   const m = iso ? momentLocal(iso, maintenant) : undefined;
-  return m ? `retour à zéro ${m}` : undefined;
+  return m ? t("retour", { moment: m }) : undefined;
 }
 
-/** « il y a 2 min » */
-export function ageTexte(ms: number, maintenant = Date.now()): string {
+/** Âge d'un instant : « just now », « 2 min ago » (en) ; « à l'instant », « il y a 2 min » (fr). */
+function age(ms: number, maintenant: number): { texte: string; instant: boolean } {
   const s = Math.max(0, Math.round((maintenant - ms) / 1000));
-  if (s < 60) return "à l'instant";
+  if (s < 60) return { texte: t("age.instant"), instant: true };
   const min = Math.round(s / 60);
-  if (min < 60) return `il y a ${min} min`;
+  if (min < 60) return { texte: t("age.min", { n: min }), instant: false };
   const h = Math.round(min / 60);
-  if (h < 24) return `il y a ${h} h`;
-  return `il y a ${Math.round(h / 24)} j`;
+  if (h < 24) return { texte: t("age.h", { n: h }), instant: false };
+  return { texte: t("age.j", { n: Math.round(h / 24) }), instant: false };
 }
 
+export function ageTexte(ms: number, maintenant = Date.now()): string {
+  return age(ms, maintenant).texte;
+}
+
+/** « updated 2 min ago » ; chiffres de la mémoire de Claude : « from Claude's cache, 3 h ago ». */
 export function phraseMaj(q: Quotas, maintenant = Date.now()): string {
-  const age = ageTexte(q.majLe, maintenant);
-  if (q.source === "cache") {
-    return age === "à l'instant" ? "chiffres à l'instant (mémoire de Claude)" : `chiffres d'${age} (mémoire de Claude)`;
-  }
-  return `mis à jour ${age}`;
+  const a = age(q.majLe, maintenant);
+  if (q.source === "cache") return a.instant ? t("maj.cacheInstant") : t("maj.cache", { age: a.texte });
+  return t("maj.direct", { age: a.texte });
 }
 
-/** « 5 h : 62 % · semaine : 26 % » */
+/** « 5-hour: 62% · week: 26% » */
 export function libelleQuota(q: Quotas | undefined): string {
-  if (!q) return "quotas pas encore relevés";
+  if (!q) return t("quota.absent");
   const morceaux: string[] = [];
-  if (q.cinqHeures) morceaux.push(`5 h : ${pourcent(q.cinqHeures.pct)}`);
-  if (q.semaine) morceaux.push(`semaine : ${pourcent(q.semaine.pct)}`);
-  return morceaux.length ? morceaux.join(" · ") : "quotas indisponibles";
+  if (q.cinqHeures) morceaux.push(t("quota.cinqHeures", { pct: pourcent(q.cinqHeures.pct) }));
+  if (q.semaine) morceaux.push(t("quota.semaine", { pct: pourcent(q.semaine.pct) }));
+  return morceaux.length ? morceaux.join(" · ") : t("quota.indisponible");
 }
 
-/** « Le compte A est à 92 % (limite de 5 h, retour à zéro à 16 h 39). » */
+/** « Account A is at 92% (5-hour limit, resets at 16:39). » */
 export function phraseAlerte(c: Compte, pct: number, limite: "5 h" | "semaine", reset?: string, maintenant = Date.now()): string {
-  const nom = limite === "5 h" ? "limite de 5 h" : "limite de la semaine";
+  const nom = t(limite === "5 h" ? "alerte.limite5h" : "alerte.limiteSemaine");
   const retour = phraseRetour(reset, maintenant);
-  return `Le compte ${c} est à ${Math.round(pct)} % (${nom}${retour ? `, ${retour}` : ""}).`;
+  return t("alerte.phrase", { compte: c, pct: pourcent(pct), limite: nom, retour: retour ? `, ${retour}` : "" });
 }
 
 function normaliser(s: string): string {

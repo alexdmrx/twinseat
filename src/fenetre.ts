@@ -8,6 +8,7 @@ import { infosCompte } from "./installation";
 import { journal } from "./journal";
 import { derniersQuotas } from "./quotas";
 import { ecrireCompteProjet, lireCompteProjet } from "./registre";
+import { t } from "./textes";
 
 export const REGLAGE_LANCEUR = "claudeCode.claudeProcessWrapper";
 
@@ -64,7 +65,7 @@ function appliquerTerminal(): void {
   if (!collection) return;
   if (actif) {
     collection.persistent = false;
-    collection.description = "Comptes Claude : les terminaux suivent le compte de cette fenêtre.";
+    collection.description = t("fenetre.terminal");
     collection.replace("CLAUDE_CONFIG_DIR", dossierCompte(courant));
   } else {
     collection.delete("CLAUDE_CONFIG_DIR");
@@ -87,7 +88,7 @@ export function definirCompte(c: Compte, options: { initial: boolean }): void {
   evenement.fire(c);
   journal(`fenêtre sur le compte ${c}${options.initial ? " (ouverture)" : ""}`);
   if (!options.initial && change) {
-    void vscode.window.showInformationMessage(`Cette fenêtre passe sur le compte ${c}. Les conversations déjà ouvertes gardent leur compte.`);
+    void vscode.window.showInformationMessage(t("fenetre.change", { compte: c }));
   }
 }
 
@@ -105,18 +106,18 @@ interface Choix extends vscode.QuickPickItem {
   compte: Compte;
 }
 
-/** Menu « Compte Claude pour cette fenêtre ». Fermer le menu = rien ne change. */
+/** Menu du compte de cette fenêtre. Fermer le menu = rien ne change. */
 export async function demanderCompte(): Promise<void> {
   const items: Choix[] = COMPTES.map((c) => ({
-    label: `${c === courant ? "$(check) " : ""}Compte ${c}`,
+    label: `${c === courant ? "$(check) " : ""}${t("compte.nom", { compte: c })}`,
     description: infosCompte(c).email,
     detail: libelleQuota(derniersQuotas(c)),
     compte: c,
   }));
   const choisi = await new Promise<Compte | undefined>((resolve) => {
     const qp = vscode.window.createQuickPick<Choix>();
-    qp.title = "Compte Claude pour cette fenêtre";
-    qp.placeholder = `Compte actuel : ${courant}`;
+    qp.title = t("menu.titre");
+    qp.placeholder = t("menu.placeholder", { compte: courant });
     qp.ignoreFocusOut = false;
     qp.items = items;
     qp.activeItems = items.filter((i) => i.compte === courant);

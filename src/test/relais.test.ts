@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -8,6 +8,11 @@ import {
   cheminNote, dateNote, dossierRelais, estNomNote, jetonsContexte, jetonsTexte, listerNotes,
   marquerAlerteContexte, nettoyerAlertesContexte, titreNote,
 } from "../relais";
+import { definirLangue } from "../textes";
+
+afterEach(() => {
+  definirLangue("en");
+});
 
 const maison = () => fs.mkdtempSync(path.join(os.tmpdir(), "relais-test-"));
 
@@ -26,10 +31,20 @@ test("nom de note : seul AAAA-MM-JJ-HHMM.md passe", () => {
   assert.equal(cheminNote("/p", "../x.md", "/h"), undefined);
 });
 
-test("date et titre d'une note", () => {
+test("date d'une note (en : « Nov 8, 15:30 », fr : « 8 nov. 15 h 30 »)", () => {
+  assert.equal(dateNote("2026-11-08-1530.md"), "Nov 8, 15:30");
+  assert.equal(dateNote("2026-10-07-1405.md"), "Oct 7, 14:05");
+  assert.equal(dateNote("2026-12-31-0000.md"), "Dec 31, 00:00");
+  assert.equal(dateNote("2026-13-01-0000.md"), undefined);
+  assert.equal(dateNote("n.md"), undefined);
+  definirLangue("fr");
+  assert.equal(dateNote("2026-11-08-1530.md"), "8 nov. 15 h 30");
   assert.equal(dateNote("2026-10-07-1405.md"), "7 oct. 14 h 05");
   assert.equal(dateNote("2026-12-31-0000.md"), "31 déc. 0 h 00");
   assert.equal(dateNote("2026-13-01-0000.md"), undefined);
+});
+
+test("titre d'une note", () => {
   assert.equal(titreNote("# Relais — Refonte du panneau — 2026-10-07 14:05", "n.md"), "Refonte du panneau");
   assert.equal(titreNote("# Relais — A — B — 2026-10-07", "n.md"), "A — B");
   assert.equal(titreNote("# Relais — Sans date", "n.md"), "Sans date");
@@ -49,7 +64,7 @@ test("listerNotes : 3 plus récentes, ignore les intrus", () => {
   const l = listerNotes(p, 3, h);
   assert.deepEqual(l.map((x) => x.nom), ["2026-10-07-1405.md", "2026-10-06-1000.md", "2026-10-05-0900.md"]);
   assert.equal(l[0].titre, "T07");
-  assert.equal(l[0].date, "7 oct. 14 h 05");
+  assert.equal(l[0].date, "Oct 7, 14:05");
   assert.deepEqual(listerNotes("/inconnu", 3, h), []);
 });
 
@@ -84,8 +99,13 @@ test("marqueur d'alerte : une seule fois ; nettoyage > 7 jours", () => {
   assert.equal(nettoyerAlertesContexte(h), 1);
 });
 
-test("jetonsTexte arrondit au millier", () => {
-  assert.equal(jetonsTexte(165003), "165 000");
+test("jetonsTexte arrondit au millier (en : 165,000 ; fr : 165 000 avec espace fine insécable)", () => {
+  assert.equal(jetonsTexte(165003), "165,000");
+  assert.equal(jetonsTexte(999), "1,000");
+  assert.equal(jetonsTexte(4200), "4,000");
+  definirLangue("fr");
+  assert.equal(jetonsTexte(165003), "165\u202f000");
+  assert.equal(jetonsTexte(1_234_567), "1\u202f235\u202f000");
 });
 
 test("racineProjet : sous-dossier et worktree → racine du dépôt principal (comme bin/dossier-relais)", () => {

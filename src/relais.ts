@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { base, cleProjetClaude } from "./chemins";
+import { heure, liste, t } from "./textes";
 
 export const SEUIL_CONTEXTE = 160_000;
 const LECTURE_MAX = 256 * 1024;
@@ -43,15 +44,13 @@ export function estNomNote(nom: unknown): nom is string {
   return typeof nom === "string" && /^\d{4}-\d{2}-\d{2}-\d{4}\.md$/.test(nom);
 }
 
-const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
-
-/** « 2026-10-07-1405.md » → « 7 oct. 14 h 05 » (undefined si le nom est invalide). */
+/** « 2026-11-08-1530.md » → « Nov 8, 15:30 » (en) ou « 8 nov. 15 h 30 » (fr) ; undefined si le nom est invalide. */
 export function dateNote(nom: string): string | undefined {
   const m = /^\d{4}-(\d{2})-(\d{2})-(\d{2})(\d{2})\.md$/.exec(nom);
   if (!m) return undefined;
   const mois = Number(m[1]);
   if (mois < 1 || mois > 12) return undefined;
-  return `${Number(m[2])} ${MOIS[mois - 1]} ${Number(m[3])} h ${m[4]}`;
+  return t("note.date", { jour: Number(m[2]), mois: liste("mois")[mois - 1], heure: heure(Number(m[3]), Number(m[4])) });
 }
 
 /** « # Relais — <titre> — <date> » → « <titre> » ; repli : le nom de fichier. */
@@ -186,7 +185,7 @@ export function nettoyerAlertesContexte(home = os.homedir()): number {
   return n;
 }
 
-/** « 165 000 » (≈ arrondi au millier, espace insécable fine). */
+/** « 165,000 » (en) ou « 165 000 » (fr, espace fine insécable) : arrondi au millier. */
 export function jetonsTexte(n: number): string {
-  return (Math.round(n / 1000) * 1000).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return (Math.round(n / 1000) * 1000).toString().replace(/\B(?=(\d{3})+(?!\d))/g, t("fmt.milliers"));
 }
