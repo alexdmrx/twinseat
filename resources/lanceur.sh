@@ -89,7 +89,9 @@ ouverte_ailleurs() {
   for p in $pids; do
     [ "$p" = "$$" ] && continue
     nom=$(ps -o comm= -p "$p" 2>/dev/null)
-    case "$nom" in *sh|"") continue ;; esac   # un lanceur en cours, ou déjà fini
+    # Un lanceur en cours, ou déjà fini. Lancé par sa ligne #!, il s'appelle « /bin/sh »
+    # sous macOS mais « lanceur » sous Linux.
+    case "$nom" in *sh|*lanceur|"") continue ;; esac
     return 0
   done
   return 1
@@ -113,6 +115,8 @@ fi
 if [ "$mode" = "session" ] && [ -z "$id_neuf" ] && [ "$sans_trace" = 0 ]; then
   if [ -z "$id_reprise" ] || [ "$copie" = 1 ]; then
     id_neuf=$(uuidgen 2>/dev/null | tr 'A-F' 'a-f')
+    # Sans uuidgen (Linux sans le paquet uuid-runtime) : le noyau en fournit un.
+    [ -n "$id_neuf" ] || id_neuf=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr 'A-F' 'a-f')
     [ -n "$id_neuf" ] && set -- "$@" "--session-id=$id_neuf"
   fi
 fi

@@ -10,8 +10,15 @@ permissions:
 
 jobs:
   test:
-    # The launcher relies on macOS tools (uuidgen, pgrep, BSD ps).
-    runs-on: macos-latest
+    # Twinseat supports macOS and Linux, so both run the whole suite. The launcher is a POSIX
+    # sh script: Ubuntu's /bin/sh is dash, macOS's is bash in POSIX mode, and the launcher
+    # tests pass on both. fail-fast is off so that one system's failure never hides the other's.
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

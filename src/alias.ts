@@ -1,7 +1,8 @@
 // Commande « Twinseat: Add claude-a / claude-b shell aliases ».
 // Rien n'est écrit sans accord : le fichier visé est nommé dans une confirmation
-// qui montre aussi les deux lignes. Zsh et bash seulement ; pour un autre shell,
-// les deux lignes sont copiées et rien n'est écrit.
+// qui montre aussi les deux lignes. Zsh et bash seulement (le fichier dépend du shell et du
+// système : voir fichierShell) ; pour un autre shell, les deux lignes sont copiées et rien
+// n'est écrit.
 import * as vscode from "vscode";
 import { ajouterAlias, LIGNES_ALIAS, planAlias } from "./installation";
 import { journal } from "./journal";

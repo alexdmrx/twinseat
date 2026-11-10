@@ -11,13 +11,14 @@ import { infosCompte, installer } from "./installation";
 import { journal, ouvrirJournal } from "./journal";
 import { demarrerOnglets } from "./onglets";
 import { Panneau } from "./panneau";
+import { pageNonSupportee, plateformeSupportee } from "./plateforme";
 import { auSeuil, demanderQuotas, derniersQuotas, enregistrerQuotas, prendreVerrou, rendreVerrou } from "./quotas";
 import { conversationsVivantes, ecrireCompte, nettoyerRegistre, titreConversation, trouverHistorique } from "./registre";
 import { estNomNote, jetonsContexte, jetonsTexte, lireFin, marquerAlerteContexte, nettoyerAlertesContexte, SEUIL_CONTEXTE } from "./relais";
 import {
   dossierPrincipal, ecrireEtiquette, ecrireReglageProjet, etiquettesActuelles, REGLAGE_COMPTE, REGLAGE_ETIQUETTES,
 } from "./reglages";
-import { definirLangue, t } from "./textes";
+import { definirLangue, langue, t } from "./textes";
 import {
   compteFenetre, compteInitial, definirCompte, demanderCompte, etatLanceur, initFenetre,
   majActivation, oublierFenetre, quandCompteChange, REGLAGE_LANCEUR, resolutionInitiale, resolutionProjet,
@@ -37,9 +38,36 @@ function binaireClaude(): string | undefined {
 const entreGuillemets = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 const deuxConnectes = () => COMPTES.every((c) => infosCompte(c).connecte);
 
+/**
+ * Plateforme non prise en charge (Windows…) : un seul message, le même texte dans le panneau,
+ * et des commandes qui répètent ce message au lieu d'échouer en « commande introuvable ».
+ * Rien d'autre : ni installation, ni réglage, ni variable d'environnement, ni minuteur.
+ */
+function activerSansPriseEnCharge(context: vscode.ExtensionContext): void {
+  const message = (): void => {
+    void vscode.window.showInformationMessage(t("plateforme.nonSupportee"));
+  };
+  message();
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(Panneau.id, {
+      resolveWebviewView(vue) {
+        vue.webview.options = { enableScripts: false };
+        vue.webview.html = pageNonSupportee(t("plateforme.nonSupportee"), langue());
+      },
+    }),
+  );
+  const declarees = (context.extension.packageJSON?.contributes?.commands ?? []) as { command: string }[];
+  for (const { command } of declarees) context.subscriptions.push(vscode.commands.registerCommand(command, message));
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   // Avant tout texte visible : la langue de VS Code choisit l'anglais ou le français.
   definirLangue(vscode.env.language);
+  // macOS et Linux seulement : ailleurs, avant tout le reste, l'extension ne fait rien.
+  if (!plateformeSupportee()) {
+    activerSansPriseEnCharge(context);
+    return;
+  }
   // Synchrone, avant tout le reste : les onglets Claude restaurés démarrent tôt.
   process.env.CLAUDE_COMPTE_FENETRE = compteInitial();
 

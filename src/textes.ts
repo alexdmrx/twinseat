@@ -98,12 +98,15 @@ export const en = {
   "projet.epingle": "This project now uses account “{compte}” (“twinseat.account” saved in .vscode/settings.json).",
   "projet.echec": "Couldn't write “twinseat.account” in this folder's settings.",
 
+  // --- Plateforme non prise en charge (message et panneau) -----------------------------
+  "plateforme.nonSupportee": "Twinseat supports macOS and Linux only. On this system it stays inactive and changes nothing.",
+
   // --- Alias de shell -------------------------------------------------------------
   "alias.confirmer": "Add the claude-a and claude-b aliases to {fichier}?",
   "alias.ajouter": "Add aliases",
   "alias.ajoutes": "Added the claude-a and claude-b aliases to {fichier}. Open a new terminal to use them.",
   "alias.dejaLa": "The claude-a and claude-b aliases are already in {fichier}. Nothing was changed.",
-  "alias.shellInconnu": "Twinseat can only edit ~/.zshrc (zsh) and ~/.bashrc (bash). Your shell is neither, so nothing was written. The two alias lines are copied to your clipboard: paste them into your shell's startup file.",
+  "alias.shellInconnu": "Twinseat can only edit the startup file of zsh or bash. Your shell is neither, so nothing was written. The two alias lines are copied to your clipboard: paste them into your shell's startup file.",
   "alias.echec": "Couldn't write to {fichier}.",
 
   // --- Panneau : bannières et barres (construits côté extension) ------------------
@@ -224,11 +227,13 @@ export const fr: Record<Cle, string> = {
   "projet.epingle": "Ce projet utilise maintenant le compte « {compte} » (« twinseat.account » écrit dans .vscode/settings.json).",
   "projet.echec": "Impossible d'écrire « twinseat.account » dans les réglages de ce dossier.",
 
+  "plateforme.nonSupportee": "Twinseat ne fonctionne que sur macOS et Linux. Sur ce système, il reste inactif et ne change rien.",
+
   "alias.confirmer": "Ajouter les alias claude-a et claude-b à {fichier} ?",
   "alias.ajouter": "Ajouter les alias",
   "alias.ajoutes": "Alias claude-a et claude-b ajoutés à {fichier}. Ouvrez un nouveau terminal pour les utiliser.",
   "alias.dejaLa": "Les alias claude-a et claude-b sont déjà dans {fichier}. Rien n'a été changé.",
-  "alias.shellInconnu": "Twinseat ne sait modifier que ~/.zshrc (zsh) et ~/.bashrc (bash). Votre shell n'est ni l'un ni l'autre : rien n'a été écrit. Les deux lignes d'alias sont copiées dans le presse-papiers : collez-les dans le fichier de démarrage de votre shell.",
+  "alias.shellInconnu": "Twinseat ne sait modifier que le fichier de démarrage de zsh ou de bash. Votre shell n'est ni l'un ni l'autre : rien n'a été écrit. Les deux lignes d'alias sont copiées dans le presse-papiers : collez-les dans le fichier de démarrage de votre shell.",
   "alias.echec": "Impossible d'écrire dans {fichier}.",
 
   "barre.cinqHeures": "5 h",

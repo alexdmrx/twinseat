@@ -1,0 +1,63 @@
+name: compat
+
+# Every night: does the newest Claude Code (CLI and VS Code extension) still offer what Twinseat
+# relies on? The checks are in scripts/compat-check.sh. A red run means a Claude Code release
+# changed something Twinseat depends on: look at the summary of the run, then fix or pin.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the latest Claude Code CLI
+        run: |
+          npm install --global @anthropic-ai/claude-code@latest
+          claude --version
+
+      - name: Download the latest Claude Code VS Code extension (linux-x64)
+        run: |
+          curl -fsSL --compressed --retry 3 --retry-delay 5 --retry-all-errors \
+            -o claude-code.vsix \
+            "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/anthropic/vsextensions/claude-code/latest/vspackage?targetPlatform=linux-x64"
+          ls -l claude-code.vsix
+          unzip -q claude-code.vsix -d vsix
+          test -f vsix/extension/package.json
+
+      - name: Check compatibility
+        run: |
+          claude_bin=$(readlink -f "$(command -v claude)")
+          cli_version=$(claude --version | head -n 1)
+          ext_version=$(node -p "require('./vsix/extension/package.json').version")
+          {
+            echo "## Claude Code compatibility"
+            echo
+            echo "| Component | Version |"
+            echo "| --- | --- |"
+            echo "| Claude Code CLI (npm, latest) | \`${cli_version}\` |"
+            echo "| Claude Code VS Code extension (Marketplace, linux-x64, latest) | \`${ext_version}\` |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          file "$claude_bin" || true
+          set +e
+          sh scripts/compat-check.sh vsix/extension "$claude_bin" 2>&1 | tee compat.log
+          status=${PIPESTATUS[0]}
+          set -e
+          {
+            echo '```'
+            cat compat.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

@@ -25,7 +25,7 @@ export function racineComptes(home = os.homedir()): string {
 
 /**
  * Dossier de configuration d'un compte. La chaîne doit être EXACTEMENT celle
- * du lanceur ("$HOME/.claude/comptes/A", sans barre finale) : Claude Code
+ * du lanceur ("$HOME/.claude/comptes/A", sans barre finale) : sur macOS, Claude Code
  * range la connexion dans le trousseau sous une empreinte de cette chaîne.
  */
 export function dossierCompte(c: Compte, home = os.homedir()): string {

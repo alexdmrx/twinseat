@@ -145,9 +145,20 @@ export function detecterShell(valeurShell: string | undefined): Shell | undefine
   return nom === "zsh" || nom === "bash" ? nom : undefined;
 }
 
-/** Fichier de démarrage où le bloc d'alias s'écrit : ~/.zshrc (zsh) ou ~/.bashrc (bash). */
-export function fichierShell(shell: Shell, home = os.homedir()): string {
-  return path.join(home, shell === "zsh" ? ".zshrc" : ".bashrc");
+/**
+ * Fichier de démarrage où le bloc d'alias s'écrit.
+ * - zsh : ~/.zshrc, partout ;
+ * - bash sous Linux : ~/.bashrc ;
+ * - bash sous macOS (les terminaux y sont des shells de connexion, qui lisent ~/.bash_profile) :
+ *   ~/.bash_profile s'il existe, sinon ~/.bashrc s'il existe, sinon ~/.bash_profile (à créer).
+ * Ne crée ni ne modifie rien. `plateforme` = `process.platform` (injectée dans les essais).
+ */
+export function fichierShell(shell: Shell, home = os.homedir(), plateforme: string = process.platform): string {
+  if (shell === "zsh") return path.join(home, ".zshrc");
+  const rc = path.join(home, ".bashrc");
+  if (plateforme !== "darwin") return rc;
+  const profil = path.join(home, ".bash_profile");
+  return !fs.existsSync(profil) && fs.existsSync(rc) ? rc : profil;
 }
 
 /** Le bloc d'alias est-il déjà dans ce fichier ? (absent = non) */
@@ -173,9 +184,9 @@ export type PlanAlias =
   | { action: "copier"; lignes: readonly string[] };
 
 /** Que faire pour ce shell ? N'écrit jamais : l'appelant demande confirmation, puis appelle ajouterAlias. */
-export function planAlias(valeurShell: string | undefined, home = os.homedir()): PlanAlias {
+export function planAlias(valeurShell: string | undefined, home = os.homedir(), plateforme: string = process.platform): PlanAlias {
   const shell = detecterShell(valeurShell);
   if (!shell) return { action: "copier", lignes: LIGNES_ALIAS };
-  const fichier = fichierShell(shell, home);
+  const fichier = fichierShell(shell, home, plateforme);
   return { action: "ecrire", shell, fichier, dejaFait: aliasPresents(fichier) };
 }

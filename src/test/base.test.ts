@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { cleProjetLanceur, dossierCompte, estNumeroConversation } from "../chemins";
 import { ficheDeDepart, infosCompte, installer } from "../installation";
 import { auSeuil, Quotas } from "../quotas";
-import { ecrireCompte, ecrireCompteProjet, lireCompte, lireCompteProjet } from "../registre";
+import { cheminPs, conversationsVivantes, ecrireCompte, ecrireCompteProjet, lireCompte, lireCompteProjet } from "../registre";
 
 const LANCEUR = path.resolve(__dirname, "../../resources/lanceur.sh");
 const maison = () => fs.mkdtempSync(path.join(os.tmpdir(), "comptes-test-"));
@@ -102,4 +102,26 @@ test("mémoire de projet : écriture atomique relue par la clé du lanceur", () 
   const f = path.join(home, ".claude", "comptes", "projets", cleProjetLanceur(dossier));
   assert.equal(fs.readFileSync(f, "utf8"), "B\n");
   assert.deepEqual(fs.readdirSync(path.dirname(f)), [cleProjetLanceur(dossier)]);
+});
+
+test("cheminPs : /bin/ps, sinon /usr/bin/ps, sinon « ps » cherché dans le PATH", () => {
+  assert.equal(cheminPs(() => true), "/bin/ps");
+  assert.equal(cheminPs((p) => p === "/usr/bin/ps"), "/usr/bin/ps");
+  assert.equal(cheminPs(() => false), "ps");
+});
+
+test("conversationsVivantes : voit un processus de conversation (macOS comme Linux)", async () => {
+  const id = "9a8b7c6d-1111-4222-8333-444455556666";
+  // bash : « exec -a » donne au processus la ligne de commande d'un Claude en flux, sur les deux systèmes.
+  const enfant = spawn("bash", ["-c", 'exec -a "claude-test stream-json --session-id=$1" sleep 20', "_", id], { stdio: "ignore" });
+  try {
+    let vues = new Map<string, number>();
+    for (let i = 0; i < 40 && !vues.has(id); i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      vues = await conversationsVivantes();
+    }
+    assert.equal(vues.get(id), enfant.pid);
+  } finally {
+    enfant.kill();
+  }
 });

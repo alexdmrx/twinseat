@@ -26,10 +26,18 @@ export function ecrireCompte(id: string, c: Compte, home = os.homedir()): void {
   fs.renameSync(tmp, path.join(dossier, id));
 }
 
+/**
+ * Le programme `ps` : /bin/ps (macOS, Debian, Ubuntu), sinon /usr/bin/ps (Fedora, Arch, certains
+ * Linux sans /bin fusionné), sinon « ps » cherché dans le PATH (NixOS…). `existe` est injectable.
+ */
+export function cheminPs(existe: (chemin: string) => boolean = fs.existsSync): string {
+  return ["/bin/ps", "/usr/bin/ps"].find((c) => existe(c)) ?? "ps";
+}
+
 /** Numéros des conversations dont un processus Claude tourne : id → pid. */
 export function conversationsVivantes(): Promise<Map<string, number>> {
   return new Promise((resolve) => {
-    execFile("/bin/ps", ["-axo", "pid=,args="], { maxBuffer: 8 * 1024 * 1024 }, (err, sortie) => {
+    execFile(cheminPs(), ["-axo", "pid=,args="], { maxBuffer: 8 * 1024 * 1024 }, (err, sortie) => {
       const vivantes = new Map<string, number>();
       if (err) return resolve(vivantes);
       for (const ligne of sortie.split("\n")) {
