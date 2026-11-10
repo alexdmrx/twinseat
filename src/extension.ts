@@ -4,6 +4,8 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { proposerAlias } from "./alias";
 import { cheminLanceur, Compte, COMPTES, autreCompte, dossierCompte, estCompte, estNumeroConversation, sousDossier } from "./chemins";
+import { ResolutionCompte, texteOrigine } from "./compteProjet";
+import { libelle, messageErreur, titreCompte, validerEtiquette } from "./etiquettes";
 import { libelleQuota, phraseAlerte } from "./format";
 import { infosCompte, installer } from "./installation";
 import { journal, ouvrirJournal } from "./journal";
@@ -12,10 +14,13 @@ import { Panneau } from "./panneau";
 import { auSeuil, demanderQuotas, derniersQuotas, enregistrerQuotas, prendreVerrou, rendreVerrou } from "./quotas";
 import { conversationsVivantes, ecrireCompte, nettoyerRegistre, titreConversation, trouverHistorique } from "./registre";
 import { estNomNote, jetonsContexte, jetonsTexte, lireFin, marquerAlerteContexte, nettoyerAlertesContexte, SEUIL_CONTEXTE } from "./relais";
+import {
+  dossierPrincipal, ecrireEtiquette, ecrireReglageProjet, etiquettesActuelles, REGLAGE_COMPTE, REGLAGE_ETIQUETTES,
+} from "./reglages";
 import { definirLangue, t } from "./textes";
 import {
   compteFenetre, compteInitial, definirCompte, demanderCompte, etatLanceur, initFenetre,
-  majActivation, oublierFenetre, quandCompteChange, REGLAGE_LANCEUR,
+  majActivation, oublierFenetre, quandCompteChange, REGLAGE_LANCEUR, resolutionInitiale, resolutionProjet,
 } from "./fenetre";
 
 const CINQ_MIN = 5 * 60_000;
@@ -72,9 +77,11 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(barre);
   const majBarre = () => {
     if (etatLanceur() !== "actif") return barre.hide();
-    barre.text = t("barre.texte", { compte: compteFenetre() });
+    const e = etiquettesActuelles();
+    barre.text = t("barre.texte", { compte: libelle(compteFenetre(), e) });
     barre.tooltip = [
-      ...COMPTES.map((c) => `${t("compte.nom", { compte: c })} — ${libelleQuota(derniersQuotas(c))}`),
+      ...COMPTES.map((c) => `${titreCompte(c, e)} — ${libelleQuota(derniersQuotas(c))}`),
+      texteOrigine(resolutionProjet(), compteFenetre(), e),
       t("barre.infobulle"),
     ].join("\n");
     barre.show();
@@ -86,6 +93,7 @@ export function activate(context: vscode.ExtensionContext): void {
     etatLanceur,
     quandCompteChange,
     dossierProjet: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+    etiquettes: etiquettesActuelles,
   });
   context.subscriptions.push(vscode.window.registerWebviewViewProvider(Panneau.id, panneau));
 
@@ -139,9 +147,10 @@ export function activate(context: vscode.ExtensionContext): void {
     if (alertes.has(cle)) return;
     alertes.add(cle);
     const autre = autreCompte(c);
-    const bascule = t("alerte.basculer", { compte: autre });
+    const e = etiquettesActuelles();
+    const bascule = t("alerte.basculer", { compte: libelle(autre, e) });
     const voir = t("alerte.voir");
-    void vscode.window.showWarningMessage(phraseAlerte(c, s.pct, s.limite, s.reset), bascule, voir, COPIER_RELAIS).then((choix) => {
+    void vscode.window.showWarningMessage(phraseAlerte(libelle(c, e), s.pct, s.limite, s.reset), bascule, voir, COPIER_RELAIS).then((choix) => {
       if (choix === bascule) definirCompte(autre, { initial: false });
       else if (choix === COPIER_RELAIS) void copierRelais();
       else if (choix === voir) void vscode.commands.executeCommand("claudeComptes.panneau.focus");
@@ -251,16 +260,48 @@ export function activate(context: vscode.ExtensionContext): void {
   const sondageContexte = setInterval(() => void verifierContexte(), 60_000);
   context.subscriptions.push({ dispose: () => clearInterval(sondageContexte) });
 
+  // --- Compte du projet (réglage twinseat.account) ---------------------------
+  // Un réglage qui ne désigne aucun compte est ignoré ; on le signale une fois par valeur.
+  const avertis = new Set<string>();
+  const avertirReglage = (r: ResolutionCompte): void => {
+    if (r.valeurIgnoree === undefined || avertis.has(r.valeurIgnoree)) return;
+    avertis.add(r.valeurIgnoree);
+    void vscode.window.showWarningMessage(t("projet.reglageInconnu", { valeur: r.valeurIgnoree }));
+  };
+  // Le réglage (ou les noms qu'il utilise) vient de changer. Si le compte qu'il désigne n'est
+  // plus le même, la fenêtre le prend pour les nouvelles conversations, comme après un choix
+  // à la main. Réglage retiré, ou renommage qui laisse le même compte : rien ne bouge (un
+  // choix fait à la main pour cette session n'est pas défait).
+  const epingle = (r: ResolutionCompte): Compte | undefined => (r.source === "project-setting" ? r.compte : undefined);
+  let epingleVu = epingle(resolutionInitiale());
+  const surReglageProjet = (): void => {
+    const r = resolutionProjet();
+    const nouveau = epingle(r);
+    const change = nouveau !== epingleVu;
+    epingleVu = nouveau;
+    if (etatLanceur() !== "actif") return;
+    avertirReglage(r);
+    if (nouveau && change && nouveau !== compteFenetre()) definirCompte(nouveau, { initial: false });
+    majBarre();
+  };
+
   context.subscriptions.push(
     quandCompteChange(() => {
       majBarre();
       verifierAlerte();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration(REGLAGE_LANCEUR)) return;
-      majActivation();
-      majBarre();
-      void panneau.rafraichir();
+      if (e.affectsConfiguration(REGLAGE_LANCEUR)) {
+        majActivation();
+        majBarre();
+        void panneau.rafraichir();
+      }
+      const etiquettesChangees = e.affectsConfiguration(REGLAGE_ETIQUETTES);
+      if (etiquettesChangees) {
+        majBarre();
+        void panneau.rafraichir();
+      }
+      if (etiquettesChangees || e.affectsConfiguration(REGLAGE_COMPTE, dossierPrincipal()?.uri)) surReglageProjet();
     }),
   );
 
@@ -275,6 +316,63 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     if (estCompte(arg)) definirCompte(arg, { initial: false });
     else await demanderCompte();
+  });
+  cmd("nommerCompte", async (arg) => {
+    const e = etiquettesActuelles();
+    let c: Compte | undefined = estCompte(arg) ? arg : undefined;
+    if (!c) {
+      const p = await vscode.window.showQuickPick(
+        COMPTES.map((x) => ({ label: titreCompte(x, e), description: infosCompte(x).email, compte: x })),
+        { title: t("nommer.titre"), placeHolder: t("nommer.choisir") },
+      );
+      c = p?.compte;
+    }
+    if (!c) return;
+    const compte = c;
+    const autre = e[autreCompte(compte)];
+    const saisie = await vscode.window.showInputBox({
+      title: t("nommer.saisie", { compte: titreCompte(compte, e) }),
+      prompt: t("nommer.aide", { lettre: compte }),
+      placeHolder: t("nommer.exemple"),
+      value: e[compte] ?? "",
+      validateInput: (v) => {
+        if (!v.trim()) return { message: t("nommer.retour", { lettre: compte }), severity: vscode.InputBoxValidationSeverity.Info };
+        const r = validerEtiquette(v, compte, autre);
+        return r.ok ? undefined : messageErreur(r.erreur);
+      },
+    });
+    if (saisie === undefined) return; // fermé : rien ne change
+    let nom: string | undefined;
+    if (saisie.trim()) {
+      const r = validerEtiquette(saisie, compte, autre);
+      if (!r.ok) return;
+      nom = r.etiquette;
+    }
+    try {
+      await ecrireEtiquette(compte, nom);
+      journal(nom ? `compte ${compte} nommé` : `compte ${compte} : nom retiré`);
+    } catch (err) {
+      journal(`nom du compte ${compte} non écrit (${(err as Error).message})`);
+      void vscode.window.showWarningMessage(t("nommer.echec"));
+    }
+  });
+  cmd("epinglerProjet", async () => {
+    if (etatLanceur() !== "actif") {
+      void vscode.window.showInformationMessage(t("choisir.inactif"));
+      return;
+    }
+    const valeur = libelle(compteFenetre(), etiquettesActuelles());
+    try {
+      if (await ecrireReglageProjet(valeur)) {
+        journal(`projet épinglé sur le compte ${compteFenetre()}`);
+        void vscode.window.showInformationMessage(t("projet.epingle", { compte: valeur }));
+      } else {
+        void vscode.window.showInformationMessage(t("projet.pasDeDossier"));
+      }
+    } catch (err) {
+      journal(`réglage du projet non écrit (${(err as Error).message})`);
+      void vscode.window.showWarningMessage(t("projet.echec"));
+    }
   });
   cmd("actualiser", () => relever(true));
   cmd("activer", async () => {
@@ -300,7 +398,7 @@ export function activate(context: vscode.ExtensionContext): void {
     let c: Compte | undefined = estCompte(arg) ? arg : undefined;
     if (!c) {
       const p = await vscode.window.showQuickPick(
-        COMPTES.map((x) => ({ label: t("compte.nom", { compte: x }), compte: x })),
+        COMPTES.map((x) => ({ label: titreCompte(x, etiquettesActuelles()), description: infosCompte(x).email, compte: x })),
         { title: t("connecter.titre") },
       );
       c = p?.compte;
@@ -312,7 +410,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     const dossier = dossierCompte(c);
-    const terminal = vscode.window.createTerminal({ name: t("connecter.terminal", { compte: c }), env: { CLAUDE_CONFIG_DIR: dossier } });
+    const terminal = vscode.window.createTerminal({ name: t("connecter.terminal", { compte: libelle(c, etiquettesActuelles()) }), env: { CLAUDE_CONFIG_DIR: dossier } });
     terminal.show();
     // Le dossier est aussi posé en tête de commande : la variable des terminaux
     // de la fenêtre (compte de la fenêtre) ne doit pas prendre le dessus.
@@ -340,7 +438,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ecrireCompte(id, compte);
     journal(`reprise de ${id} sur ${compte}`);
     await vscode.commands.executeCommand("claude-vscode.editor.open", id);
-    void vscode.window.showInformationMessage(t("reprendre.ok", { compte }));
+    void vscode.window.showInformationMessage(t("reprendre.ok", { compte: libelle(compte, etiquettesActuelles()) }));
   });
   cmd("reprendreRelais", async (compte, note) => {
     if (!estCompte(compte)) return;
@@ -353,7 +451,7 @@ export function activate(context: vscode.ExtensionContext): void {
     } catch (e) {
       journal(`relais : ouverture impossible (${(e as Error).message})`);
     }
-    void vscode.window.showInformationMessage(t("relais.reprise", { compte, texte }));
+    void vscode.window.showInformationMessage(t("relais.reprise", { compte: libelle(compte, etiquettesActuelles()), texte }));
   });
   cmd("ajouterAlias", proposerAlias);
   const focus = () => vscode.commands.executeCommand("claudeComptes.panneau.focus");
@@ -362,12 +460,17 @@ export function activate(context: vscode.ExtensionContext): void {
   cmd("bulleInconnu", focus);
 
   // --- Démarrage : activation du lanceur, puis menu d'ouverture --------------
+  // Le menu ne s'ouvre que si rien ne désigne le compte du projet (ni réglage, ni mémoire) ;
+  // sinon la fenêtre est déjà sur le bon compte, sans rien demander.
   void (async () => {
     if (!gs.get<boolean>("desactive")) await activerLanceur(false);
     majActivation();
     majBarre();
     void panneau.rafraichir();
-    if (etatLanceur() === "actif" && deuxConnectes()) await demanderCompte();
+    if (etatLanceur() !== "actif") return;
+    const depart = resolutionInitiale();
+    avertirReglage(depart);
+    if (depart.source === "default" && deuxConnectes()) await demanderCompte();
   })().catch((e: unknown) => journal(`démarrage : ${(e as Error).message}`));
 }
 

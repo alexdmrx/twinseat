@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { base, cleProjetClaude, cleProjetLanceur, Compte, estCompte, estNumeroConversation, sousDossier } from "./chemins";
+import { t } from "./textes";
 
 export function lireCompte(id: string, home = os.homedir()): Compte | undefined {
   if (!estNumeroConversation(id)) return undefined;
@@ -151,7 +152,7 @@ export function conversationsRecentes(
     .slice(0, n)
     .map((x) => ({
       id: x.id,
-      titre: titreConversation(x.f) ?? "Conversation sans titre",
+      titre: titreConversation(x.f) ?? t("contexte.sansTitre"),
       maj: x.maj,
       compte: lireCompte(x.id, home),
       ouverte: vivantes.has(x.id),
@@ -166,7 +167,7 @@ export function conversationsOuvertes(vivantes: Map<string, number>, home = os.h
     if (!f) continue; // onglet neuf sans message : pas encore d'historique
     liste.push({
       id,
-      titre: titreConversation(f) ?? "Conversation sans titre",
+      titre: titreConversation(f) ?? t("contexte.sansTitre"),
       maj: fs.statSync(f).mtimeMs,
       compte: lireCompte(id, home),
       ouverte: true,

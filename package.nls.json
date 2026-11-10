@@ -2,6 +2,8 @@
   "viewsContainer.title": "Twinseat",
   "view.panneau.name": "Accounts",
   "command.choisirCompte.title": "Twinseat: Choose this window's account",
+  "command.nommerCompte.title": "Twinseat: Name an account…",
+  "command.epinglerProjet.title": "Twinseat: Pin this project to the current account",
   "command.actualiser.title": "Twinseat: Refresh usage",
   "command.activer.title": "Twinseat: Enable",
   "command.desactiver.title": "Twinseat: Disable everything",
@@ -11,5 +13,8 @@
   "command.reprendreRelais.title": "Twinseat: Resume a handoff note on an account",
   "command.bulleA.title": "Twinseat: This tab is on account A",
   "command.bulleB.title": "Twinseat: This tab is on account B",
-  "command.bulleInconnu.title": "Twinseat: This tab's account is uncertain"
+  "command.bulleInconnu.title": "Twinseat: This tab's account is uncertain",
+  "config.title": "Twinseat",
+  "config.accountLabels.description": "Names for the two accounts, shown instead of A and B: for example {\"A\": \"work\", \"B\": \"personal\"}. 1 to 24 characters (letters, digits, spaces, _ . -); the two names must differ. A missing or invalid name falls back to the letter. Easiest to set with “Twinseat: Name an account…”.",
+  "config.account.description": "The account this project uses: a name set in “Twinseat › Account Labels”, or A or B. Put it in the project's .vscode/settings.json (or run “Twinseat: Pin this project to the current account”) and every window on this project opens on that account, with no menu. If it names no account, it is ignored and a warning is shown."
 }

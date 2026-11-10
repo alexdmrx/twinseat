@@ -2,6 +2,8 @@
   "viewsContainer.title": "Twinseat",
   "view.panneau.name": "Comptes",
   "command.choisirCompte.title": "Twinseat : choisir le compte de cette fenêtre",
+  "command.nommerCompte.title": "Twinseat : nommer un compte…",
+  "command.epinglerProjet.title": "Twinseat : épingler ce projet au compte actuel",
   "command.actualiser.title": "Twinseat : actualiser les quotas",
   "command.activer.title": "Twinseat : activer",
   "command.desactiver.title": "Twinseat : tout désactiver",
@@ -11,5 +13,8 @@
   "command.reprendreRelais.title": "Twinseat : reprendre une note de relais sur un compte",
   "command.bulleA.title": "Twinseat : cet onglet est sur le compte A",
   "command.bulleB.title": "Twinseat : cet onglet est sur le compte B",
-  "command.bulleInconnu.title": "Twinseat : compte de cet onglet incertain"
+  "command.bulleInconnu.title": "Twinseat : compte de cet onglet incertain",
+  "config.title": "Twinseat",
+  "config.accountLabels.description": "Noms des deux comptes, affichés à la place de A et B : par exemple {\"A\": \"travail\", \"B\": \"perso\"}. De 1 à 24 caractères (lettres, chiffres, espaces, _ . -) ; les deux noms doivent différer. Un nom absent ou invalide laisse la lettre. Le plus simple : « Twinseat : nommer un compte… ».",
+  "config.account.description": "Le compte que ce projet utilise : un nom donné dans « Twinseat › Account Labels », ou A ou B. Écrivez-le dans le .vscode/settings.json du projet (ou lancez « Twinseat : épingler ce projet au compte actuel ») et chaque fenêtre ouverte sur ce projet démarre sur ce compte, sans menu. S'il ne désigne aucun compte, il est ignoré et un avertissement s'affiche."
 }

@@ -8,6 +8,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as vscode from "vscode";
 import { Compte, COMPTES, estCompte, estNumeroConversation, sousDossier } from "./chemins";
+import { Etiquettes, libelle, titreCompte } from "./etiquettes";
 import { ageTexte, niveau, Niveau, phraseMaj, phraseRetour, pourcent } from "./format";
 import { infosCompte } from "./installation";
 import { journal } from "./journal";
@@ -21,6 +22,8 @@ export interface Dependances {
   etatLanceur(): "actif" | "libre" | "autre";
   quandCompteChange: vscode.Event<unknown>;
   dossierProjet(): string | undefined;
+  /** Les noms valides donnés aux comptes (réglage `twinseat.accountLabels`). */
+  etiquettes(): Etiquettes;
 }
 
 interface Barre {
@@ -31,6 +34,10 @@ interface Barre {
 }
 interface CarteCompte {
   compte: Compte;
+  /** Titre de la carte : le nom du compte, sinon « Account A ». */
+  titre: string;
+  /** Le nom donné au compte, s'il en a un (alors la lettre s'affiche aussi, en pastille). */
+  etiquette?: string;
   email?: string;
   connecte: boolean;
   plan?: string;
@@ -43,12 +50,16 @@ interface LigneConversation {
   id: string;
   titre: string;
   compte?: Compte;
+  /** Ce que la pastille affiche : le nom du compte, sinon sa lettre, sinon « ? ». */
+  libelle: string;
   age: string;
   ouverte: boolean;
 }
 export interface Etat {
   banniere?: string;
   peutActiver: boolean;
+  /** Libellé de chaque compte dans les phrases et sur les boutons : le nom, sinon la lettre. */
+  libelles: Record<Compte, string>;
   comptes: CarteCompte[];
   ouvertes: LigneConversation[];
   recentes: LigneConversation[];
@@ -133,6 +144,9 @@ export class Panneau implements vscode.WebviewViewProvider {
       case "connecter":
         if (estCompte(o.compte)) void vscode.commands.executeCommand("claudeComptes.seConnecter", o.compte);
         return;
+      case "renommer":
+        if (estCompte(o.compte)) void vscode.commands.executeCommand("claudeComptes.nommerCompte", o.compte);
+        return;
       case "reprendre":
         if (estNumeroConversation(o.id) && estCompte(o.compte)) {
           void vscode.commands.executeCommand("claudeComptes.reprendre", o.id, o.compte);
@@ -188,6 +202,7 @@ export class Panneau implements vscode.WebviewViewProvider {
   private async etat(): Promise<Etat> {
     const maintenant = Date.now();
     const etatLanceur = this.deps.etatLanceur();
+    const etiquettes = this.deps.etiquettes();
     const infos = COMPTES.map((c) => ({ c, i: infosCompte(c) }));
     const tousConnectes = infos.every((x) => x.i.connecte);
     let banniere: string | undefined;
@@ -203,6 +218,8 @@ export class Panneau implements vscode.WebviewViewProvider {
       if (q?.semaine) barres.push(barre(t("barre.semaine"), q.semaine));
       return {
         compte: c,
+        titre: titreCompte(c, etiquettes),
+        etiquette: etiquettes[c],
         email: i.email,
         connecte: i.connecte,
         plan: q?.plan,
@@ -217,6 +234,7 @@ export class Panneau implements vscode.WebviewViewProvider {
       id: c.id,
       titre: c.titre,
       compte: c.compte,
+      libelle: c.compte ? libelle(c.compte, etiquettes) : "?",
       age: ageTexte(c.maj, maintenant),
       ouverte: c.ouverte,
     });
@@ -224,6 +242,7 @@ export class Panneau implements vscode.WebviewViewProvider {
     return {
       banniere,
       peutActiver: etatLanceur === "libre" && tousConnectes,
+      libelles: { A: libelle("A", etiquettes), B: libelle("B", etiquettes) },
       comptes,
       ouvertes: conversationsOuvertes(vivantes).map(ligne),
       recentes: dossier ? conversationsRecentes(dossier, vivantes).map(ligne) : [],
@@ -263,7 +282,7 @@ button:focus-visible{outline:1px solid var(--vscode-focusBorder);outline-offset:
 .banniere{border-left:3px solid var(--vscode-charts-yellow);padding:6px 8px;background:var(--vscode-textBlockQuote-background);font-size:12px;margin-bottom:8px;}
 .conv{padding:6px 0;border-bottom:1px solid var(--vscode-panel-border,#8883);}
 .conv .titre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.pastille{display:inline-block;min-width:16px;text-align:center;font-size:10px;font-weight:700;border-radius:8px;padding:1px 5px;margin-right:6px;color:#fff;background:#6b7280;}
+.pastille{display:inline-block;box-sizing:border-box;min-width:16px;max-width:12em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;text-align:center;font-size:10px;font-weight:700;border-radius:8px;padding:1px 5px;margin-right:6px;color:#fff;background:#6b7280;}
 .pastille.A{background:#3b82f6;}.pastille.B{background:#a855f7;}
 .vide{font-size:12px;color:var(--vscode-descriptionForeground);}
 </style></head>
@@ -272,6 +291,8 @@ button:focus-visible{outline:1px solid var(--vscode-focusBorder);outline-offset:
 const T = ${json(textes)};
 const vscode = acquireVsCodeApi();
 const racine = document.getElementById('racine');
+// Libellé de chaque compte (son nom, sinon sa lettre) : mis à jour à chaque état reçu.
+let libelles = { A: 'A', B: 'B' };
 // Texte du dictionnaire, avec ses {variables} remplacées (jamais de HTML : tout passe par textContent).
 function tr(cle, vars) {
   return String(T[cle] || cle).replace(/[{]([A-Za-z0-9_]+)[}]/g, (brut, nom) => (vars && nom in vars ? String(vars[nom]) : brut));
@@ -285,7 +306,8 @@ function bouton(texte, msg, second) {
 function carte(c) {
   const d = el('div', 'carte' + (c.fenetre ? ' ici' : ''));
   const tete = el('div', 'tete');
-  tete.appendChild(el('span', 'nom', tr('compte.nom', { compte: c.compte })));
+  if (c.etiquette) tete.appendChild(pastille(c.compte));
+  tete.appendChild(el('span', 'nom', c.titre));
   if (c.fenetre) tete.appendChild(el('span', 'badge', tr('web.cetteFenetre')));
   if (c.plan) tete.appendChild(el('span', 'petit', c.plan));
   d.appendChild(tete);
@@ -312,15 +334,21 @@ function carte(c) {
   const a = el('div', 'actions');
   if (c.connecte && !c.fenetre) a.appendChild(bouton(tr('web.utiliser'), { action: 'utiliser', compte: c.compte }));
   if (!c.connecte) a.appendChild(bouton(tr('web.connecter'), { action: 'connecter', compte: c.compte }));
-  if (a.childNodes.length) d.appendChild(a);
+  a.appendChild(bouton(tr('web.renommer'), { action: 'renommer', compte: c.compte }, true));
+  d.appendChild(a);
   return d;
 }
-function pastille(compte) { return el('span', 'pastille ' + (compte || ''), compte || '?'); }
+// Pastille colorée par emplacement ; « texte » = le nom du compte (sinon sa lettre).
+function pastille(compte, texte) {
+  const p = el('span', 'pastille ' + (compte || ''), texte || compte || '?');
+  if (texte && texte !== compte) p.title = texte;
+  return p;
+}
 function conv(c, avecBoutons) {
   const d = el('div', 'conv');
   const t = el('div', 'titre');
   t.title = c.titre;
-  t.appendChild(pastille(c.compte));
+  t.appendChild(pastille(c.compte, c.libelle));
   t.appendChild(document.createTextNode(c.titre));
   d.appendChild(t);
   d.appendChild(el('div', 'petit', c.age + (avecBoutons && c.ouverte ? ' · ' + tr('web.ouverte') : '')));
@@ -328,7 +356,7 @@ function conv(c, avecBoutons) {
     const a = el('div', 'actions');
     for (const k of ['A', 'B']) {
       const ici = c.compte === k;
-      a.appendChild(bouton(ici ? tr('web.rouvrir') : tr('web.reprendreSur', { compte: k }), { action: 'reprendre', id: c.id, compte: k }, ici));
+      a.appendChild(bouton(ici ? tr('web.rouvrir') : tr('web.reprendreSur', { compte: libelles[k] }), { action: 'reprendre', id: c.id, compte: k }, ici));
     }
     d.appendChild(a);
   }
@@ -342,11 +370,12 @@ function note(n) {
   d.appendChild(el('div', 'petit', n.date));
   const a = el('div', 'actions');
   a.appendChild(bouton(tr('web.ouvrir'), { action: 'ouvrirRelais', note: n.nom }, true));
-  for (const k of ['A', 'B']) a.appendChild(bouton(tr('web.reprendreSur', { compte: k }), { action: 'reprendreRelais', compte: k, note: n.nom }));
+  for (const k of ['A', 'B']) a.appendChild(bouton(tr('web.reprendreSur', { compte: libelles[k] }), { action: 'reprendreRelais', compte: k, note: n.nom }));
   d.appendChild(a);
   return d;
 }
 function rendre(e) {
+  libelles = e.libelles;
   racine.textContent = '';
   if (e.banniere) {
     const b = el('div', 'banniere', e.banniere);

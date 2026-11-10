@@ -107,14 +107,20 @@ test("libelleQuota (en, fr)", () => {
 });
 
 test("phraseAlerte (en)", () => {
-  assert.equal(phraseAlerte("A", 92, "5 h", jour(7, 16, 39), now), "Account A is at 92% (5-hour limit, resets at 16:39).");
-  assert.equal(phraseAlerte("B", 91.4, "semaine", undefined, now), "Account B is at 91% (weekly limit).");
+  assert.equal(phraseAlerte("A", 92, "5 h", jour(7, 16, 39), now), "Account “A” is at 92% (5-hour limit, resets at 16:39).");
+  assert.equal(phraseAlerte("B", 91.4, "semaine", undefined, now), "Account “B” is at 91% (weekly limit).");
+});
+
+test("phraseAlerte avec le nom du compte", () => {
+  assert.equal(phraseAlerte("work", 92, "5 h", jour(7, 16, 39), now), "Account “work” is at 92% (5-hour limit, resets at 16:39).");
+  definirLangue("fr");
+  assert.equal(phraseAlerte("perso", 91.4, "semaine", undefined, now), "Le compte « perso » est à 91 % (limite de la semaine).");
 });
 
 test("phraseAlerte (fr)", () => {
   enFrancais(() => {
-    assert.equal(phraseAlerte("A", 92, "5 h", jour(7, 16, 39), now), "Le compte A est à 92 % (limite de 5 h, retour à zéro à 16 h 39).");
-    assert.equal(phraseAlerte("B", 91.4, "semaine", undefined, now), "Le compte B est à 91 % (limite de la semaine).");
+    assert.equal(phraseAlerte("A", 92, "5 h", jour(7, 16, 39), now), "Le compte « A » est à 92 % (limite de 5 h, retour à zéro à 16 h 39).");
+    assert.equal(phraseAlerte("B", 91.4, "semaine", undefined, now), "Le compte « B » est à 91 % (limite de la semaine).");
   });
 });
 

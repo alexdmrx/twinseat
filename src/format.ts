@@ -73,11 +73,11 @@ export function libelleQuota(q: Quotas | undefined): string {
   return morceaux.length ? morceaux.join(" · ") : t("quota.indisponible");
 }
 
-/** « Account A is at 92% (5-hour limit, resets at 16:39). » */
-export function phraseAlerte(c: Compte, pct: number, limite: "5 h" | "semaine", reset?: string, maintenant = Date.now()): string {
+/** « Account A is at 92% (5-hour limit, resets at 16:39). » `compte` = le libellé du compte : « A » ou son nom. */
+export function phraseAlerte(compte: string, pct: number, limite: "5 h" | "semaine", reset?: string, maintenant = Date.now()): string {
   const nom = t(limite === "5 h" ? "alerte.limite5h" : "alerte.limiteSemaine");
   const retour = phraseRetour(reset, maintenant);
-  return t("alerte.phrase", { compte: c, pct: pourcent(pct), limite: nom, retour: retour ? `, ${retour}` : "" });
+  return t("alerte.phrase", { compte, pct: pourcent(pct), limite: nom, retour: retour ? `, ${retour}` : "" });
 }
 
 function normaliser(s: string): string {
