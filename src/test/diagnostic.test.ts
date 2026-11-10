@@ -8,7 +8,7 @@ import { base, cheminLanceur, COMPTES, dossierCompte, sousDossier } from "../che
 import {
   anonymiser, construireRapport, EntreesDiagnostic, etatReglage, nomVerification, reparables, reparer, resumeTexte, trouverBinaireClaude, verifier, Verification,
 } from "../diagnostic";
-import { DOSSIERS_PARTAGES, FICHIERS_PARTAGES, installer } from "../installation";
+import { copierLanceur, DOSSIERS_PARTAGES, FICHIERS_PARTAGES, installer } from "../installation";
 import { en, fr } from "../textes";
 
 const LANCEUR = path.resolve(__dirname, "../../resources/lanceur.sh");
@@ -170,6 +170,36 @@ test("lanceur : absent, modifié, non exécutable → réparés par une copie at
   assert.equal(sha(dest), sha(LANCEUR));
   assert.deepEqual(fs.readdirSync(path.dirname(dest)), ["lanceur"], "aucun fichier temporaire");
   assert.equal(par(r.apres, "lanceur").statut, "ok");
+});
+
+test("réparer recrée bin/ quand il a disparu : le lanceur revient, sans erreur ; un deuxième passage ne fait plus rien", () => {
+  const home = installee();
+  const dest = cheminLanceur(home);
+  fs.rmSync(sousDossier.bin(home), { recursive: true });
+  const l = par(verifier(entrees(home)), "lanceur");
+  assert.deepEqual([l.statut, l.reparable], ["fail", true]);
+
+  const r = reparer(entrees(home));
+  assert.deepEqual(r.erreurs, [], "pas d'ENOENT");
+  assert.ok(r.actions.includes("lanceur"));
+  assert.equal(sha(dest), sha(LANCEUR));
+  assert.equal(fs.statSync(dest).mode & 0o777, 0o755);
+  assert.deepEqual(fs.readdirSync(path.dirname(dest)), ["lanceur"], "aucun fichier temporaire");
+  assert.equal(par(r.apres, "lanceur").statut, "ok");
+
+  const encore = reparer(entrees(home));
+  assert.deepEqual(encore.erreurs, []);
+  assert.deepEqual(encore.actions, []);
+  assert.equal(sha(dest), sha(LANCEUR));
+});
+
+test("copierLanceur crée lui-même le dossier du lanceur (dossier personnel sans ~/.claude/comptes/bin)", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "diag-test-nu-"));
+  const rapport = { crees: [] as string[], conflits: [] as string[] };
+  assert.doesNotThrow(() => copierLanceur(LANCEUR, home, rapport));
+  assert.equal(sha(cheminLanceur(home)), sha(LANCEUR));
+  assert.deepEqual(rapport.crees, [cheminLanceur(home)]);
+  assert.doesNotThrow(() => copierLanceur(LANCEUR, home, rapport), "deuxième copie : le dossier existe déjà");
 });
 
 test("lanceur : un dossier ou un lien à cet endroit est signalé et n'est jamais touché ; la source illisible n'est pas réparable", () => {
@@ -481,6 +511,15 @@ test("rapport : versions, système, état du lanceur et chaque vérification ; j
       assert.match(rapport, /~\/\.claude\/comptes/, "les chemins sont écrits avec ~");
     }
   }
+});
+
+test("pied du rapport : exactement la phrase prévue (adresse, nom de compte, conversation, jeton), et le message de copie dit la même chose", () => {
+  assert.equal(en["rapport.pied"], "No email address, account name, conversation or token is included in this report.");
+  assert.equal(fr["rapport.pied"], "Ce rapport ne contient ni adresse e-mail, ni nom de compte, ni conversation, ni jeton.");
+  assert.match(en["diagnostic.copie"], /email address, account name, conversation or token/);
+  assert.match(fr["diagnostic.copie"], /ni adresse e-mail, ni nom de compte, ni conversation, ni jeton/);
+  const rapport = construireRapport(entrees(installee()));
+  assert.ok(rapport.trimEnd().endsWith("_No email address, account name, conversation or token is included in this report._"), rapport.slice(-200));
 });
 
 test("rapport : le diagnostic ne contient que des textes sans les mots « work » ni « personal » (les noms de comptes ne s'y glissent pas par hasard)", () => {

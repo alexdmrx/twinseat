@@ -11,7 +11,8 @@ import { journal } from "./journal";
 import { derniersQuotas } from "./quotas";
 import { ecrireCompteProjet, lireCompteProjet } from "./registre";
 import { etiquettesActuelles, reglageProjet } from "./reglages";
-import { t } from "./textes";
+import { t, tSur } from "./textes";
+import { texteSurOptionnel } from "./texteSur";
 
 export const REGLAGE_LANCEUR = "claudeCode.claudeProcessWrapper";
 
@@ -138,13 +139,13 @@ function annoncerChangement(c: Compte): void {
   if (r.source === "project-setting" && r.compte !== c && !reglageExplique) {
     reglageExplique = true;
     const changer = t("fenetre.changerReglage");
-    const message = t("fenetre.changeProjet", { compte: libelle(c, e), projet: libelle(r.compte, e) });
+    const message = tSur("fenetre.changeProjet", { compte: libelle(c, e), projet: libelle(r.compte, e) });
     void vscode.window.showInformationMessage(message, changer).then((choix) => {
       if (choix === changer) void vscode.commands.executeCommand("claudeComptes.epinglerProjet");
     });
     return;
   }
-  void vscode.window.showInformationMessage(t("fenetre.change", { compte: libelle(c, e) }));
+  void vscode.window.showInformationMessage(tSur("fenetre.change", { compte: libelle(c, e) }));
 }
 
 /** Retire tout ce que la fenêtre avait posé (commande « tout désactiver »). */
@@ -166,14 +167,14 @@ export async function demanderCompte(): Promise<void> {
   const e = etiquettesActuelles();
   const items: Choix[] = COMPTES.map((c) => ({
     label: `${c === courant ? "$(check) " : ""}${titreCompte(c, e)}`,
-    description: infosCompte(c).email,
+    description: texteSurOptionnel(infosCompte(c).email, 100),
     detail: libelleQuota(derniersQuotas(c)),
     compte: c,
   }));
   const choisi = await new Promise<Compte | undefined>((resolve) => {
     const qp = vscode.window.createQuickPick<Choix>();
     qp.title = t("menu.titre");
-    qp.placeholder = t("menu.placeholder", { compte: libelle(courant, e) });
+    qp.placeholder = tSur("menu.placeholder", { compte: libelle(courant, e) });
     qp.ignoreFocusOut = false;
     qp.items = items;
     qp.activeItems = items.filter((i) => i.compte === courant);

@@ -57,7 +57,8 @@ test("réglage inconnu : jamais la source « project-setting »", () => {
 test("valeur ignorée : texte lisible, court, sur une ligne (mauvais type compris)", () => {
   assert.equal(resoudreCompte(42, ETIQ, undefined).valeurIgnoree, "42");
   assert.equal(resoudreCompte(true, ETIQ, undefined).valeurIgnoree, "true");
-  assert.equal(resoudreCompte(["A"], ETIQ, undefined).valeurIgnoree, '["A"]');
+  // les crochets deviennent des crochets pleine chasse : dans une notification, « [x](command:…) » serait un lien
+  assert.equal(resoudreCompte(["A"], ETIQ, undefined).valeurIgnoree, '［"A"］');
   assert.equal(resoudreCompte("a\nb\tc", ETIQ, undefined).valeurIgnoree, "a b c");
   const long = resoudreCompte("x".repeat(200), ETIQ, undefined).valeurIgnoree ?? "";
   assert.ok(long.length <= 41 && long.endsWith("…"), long);

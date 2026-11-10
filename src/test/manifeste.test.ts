@@ -81,6 +81,23 @@ test("désinstallation : vscode:uninstall lance out/desinstallation.js, jsonc-pa
   assert.ok(!ignores.includes("out/**") && !ignores.includes("out/desinstallation.js"));
 });
 
+test("workflows GitHub : chaque action est épinglée sur un commit (40 caractères hexadécimaux) avec sa version en commentaire", () => {
+  const dossier = path.join(RACINE, ".github", "workflows");
+  const fichiers = fs.readdirSync(dossier).filter((f) => /\.ya?ml$/.test(f));
+  assert.ok(fichiers.length >= 2, "test.yml et compat.yml");
+  let actions = 0;
+  for (const f of fichiers) {
+    for (const [ligne, texte] of fs.readFileSync(path.join(dossier, f), "utf8").split("\n").entries()) {
+      const m = /^\s*(?:-\s+)?uses:\s*(\S+)(.*)$/.exec(texte);
+      if (!m) continue;
+      actions++;
+      assert.match(m[1], /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/, `${f}:${ligne + 1} : action non épinglée sur un commit (${m[1]})`);
+      assert.match(m[2], /^\s+#\s*v\d+\.\d+\.\d+\s*$/, `${f}:${ligne + 1} : la version exacte doit suivre en commentaire`);
+    }
+  }
+  assert.ok(actions >= 4, `${actions} actions vérifiées`);
+});
+
 test("les emplacements restent A et B : identifiants internes inchangés", () => {
   const ids = (pkg.contributes.commands as { command: string }[]).map((c) => c.command);
   for (const id of ["claudeComptes.bulleA", "claudeComptes.bulleB", "claudeComptes.choisirCompte"]) assert.ok(ids.includes(id), id);

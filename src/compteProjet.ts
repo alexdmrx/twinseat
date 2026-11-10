@@ -6,6 +6,7 @@
 import { Compte } from "./chemins";
 import { compteDepuisNom, Etiquettes, libelle } from "./etiquettes";
 import { t } from "./textes";
+import { texteSur } from "./texteSur";
 
 export type SourceCompte = "project-setting" | "remembered" | "default";
 
@@ -18,7 +19,10 @@ export interface ResolutionCompte {
 
 const LONGUEUR_VALEUR = 40;
 
-/** Une valeur de réglage lisible dans un message : une ligne, 40 caractères au plus. */
+/**
+ * Une valeur de réglage lisible dans un message : une ligne, 40 caractères au plus, et sûre (`texteSur`) :
+ * c'est du texte de l'utilisateur ou du dépôt, qui finit dans une notification où `[x](command:…)` serait cliquable.
+ */
 function apercu(v: unknown): string {
   let texte: string;
   if (typeof v === "string") texte = v;
@@ -29,9 +33,7 @@ function apercu(v: unknown): string {
       texte = String(v);
     }
   }
-  const plat = texte.replace(/\s+/g, " ").trim();
-  const signes = [...plat];
-  return signes.length > LONGUEUR_VALEUR ? `${signes.slice(0, LONGUEUR_VALEUR).join("")}…` : plat;
+  return texteSur(texte, LONGUEUR_VALEUR + 1);
 }
 
 /**

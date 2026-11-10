@@ -6,7 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { createScanner, parse, ParseError } from "jsonc-parser";
 import { cheminLanceur } from "../chemins";
-import { CLE_REGLAGE, desinstaller, fichiersReglages, retirerLanceur, PRODUITS } from "../desinstallation";
+import { CLE_REGLAGE, desinstaller, fichiersReglages, retirerLanceur, PRODUITS, SERVEURS } from "../desinstallation";
 
 const maison = () => fs.mkdtempSync(path.join(os.tmpdir(), "desinstall-test-"));
 const L = "/Users/jane/.claude/comptes/bin/lanceur";
@@ -131,7 +131,10 @@ test("retirerLanceur : quelle que soit la mise en forme, le résultat est valide
 
 // --- Les fichiers : emplacements par plateforme ---------------------------------------------
 
-const PRODUITS_ATTENDUS = ["Code", "Code - Insiders", "VSCodium", "Cursor", "Windsurf"];
+const PRODUITS_ATTENDUS = ["Code", "Code - Insiders", "Code - OSS", "VSCodium", "Cursor", "Windsurf"];
+const SERVEURS_ATTENDUS = [".vscode-server", ".vscode-server-insiders", ".cursor-server", ".windsurf-server", ".vscodium-server"];
+/** Les réglages d'un serveur distant : Machine et User, sous le dossier personnel (quel que soit le système). */
+const reglagesServeurs = (h: string): string[] => SERVEURS_ATTENDUS.flatMap((s) => ["Machine", "User"].map((d) => path.join(h, s, "data", d, "settings.json")));
 
 function reglage(home: string, plateforme: "darwin" | "linux", produit: string, xdg?: string): string {
   const racine = plateforme === "darwin" ? path.join(home, "Library", "Application Support") : (xdg ?? path.join(home, ".config"));
@@ -146,25 +149,32 @@ function ecrire(fichier: string, texte: string, mode?: number): void {
 
 const AVEC_NOTRE = (home: string) => `// réglages de ${path.basename(home)}\n{\n  "editor.fontSize": 14,\n  ${ligne(cheminLanceur(home))},\n  "files.autoSave": "off"\n}\n`;
 
-test("les cinq éditeurs, sous macOS et sous Linux", () => {
+test("les six éditeurs (Code - OSS compris) et les cinq serveurs distants, sous macOS et sous Linux", () => {
   assert.deepEqual([...PRODUITS], PRODUITS_ATTENDUS);
+  assert.deepEqual([...SERVEURS], SERVEURS_ATTENDUS);
   const h = "/home/jane";
+  const serveurs = reglagesServeurs(h);
+  assert.equal(serveurs.length, 10);
+  assert.ok(serveurs.includes("/home/jane/.vscode-server/data/Machine/settings.json"));
+  assert.ok(serveurs.includes("/home/jane/.cursor-server/data/User/settings.json"));
   assert.deepEqual(
     fichiersReglages({ home: h, plateforme: "darwin", xdg: null }).sort(),
-    PRODUITS_ATTENDUS.map((p) => `${h}/Library/Application Support/${p}/User/settings.json`).sort(),
+    [...PRODUITS_ATTENDUS.map((p) => `${h}/Library/Application Support/${p}/User/settings.json`), ...serveurs].sort(),
   );
   assert.deepEqual(
     fichiersReglages({ home: h, plateforme: "linux", xdg: null }).sort(),
-    PRODUITS_ATTENDUS.map((p) => `${h}/.config/${p}/User/settings.json`).sort(),
+    [...PRODUITS_ATTENDUS.map((p) => `${h}/.config/${p}/User/settings.json`), ...serveurs].sort(),
   );
   // XDG_CONFIG_HOME, quand il est défini et absolu, s'ajoute (sans doublon) ; sinon il est ignoré.
+  const total = PRODUITS_ATTENDUS.length + serveurs.length;
   const avecXdg = fichiersReglages({ home: h, plateforme: "linux", xdg: "/srv/conf" });
-  assert.equal(avecXdg.length, PRODUITS_ATTENDUS.length * 2);
+  assert.equal(avecXdg.length, PRODUITS_ATTENDUS.length * 2 + serveurs.length);
   assert.ok(avecXdg.includes("/srv/conf/Code/User/settings.json"));
-  assert.equal(fichiersReglages({ home: h, plateforme: "linux", xdg: `${h}/.config` }).length, PRODUITS_ATTENDUS.length);
-  assert.equal(fichiersReglages({ home: h, plateforme: "linux", xdg: "relatif/conf" }).length, PRODUITS_ATTENDUS.length);
-  assert.equal(fichiersReglages({ home: h, plateforme: "linux", xdg: "" }).length, PRODUITS_ATTENDUS.length);
-  assert.equal(fichiersReglages({ home: h, plateforme: "darwin", xdg: "/srv/conf" }).length, PRODUITS_ATTENDUS.length);
+  assert.ok(avecXdg.includes("/srv/conf/Code - OSS/User/settings.json"));
+  assert.equal(fichiersReglages({ home: h, plateforme: "linux", xdg: `${h}/.config` }).length, total);
+  assert.equal(fichiersReglages({ home: h, plateforme: "linux", xdg: "relatif/conf" }).length, total);
+  assert.equal(fichiersReglages({ home: h, plateforme: "linux", xdg: "" }).length, total);
+  assert.equal(fichiersReglages({ home: h, plateforme: "darwin", xdg: "/srv/conf" }).length, total);
   // Une plateforme sans éditeur connu : rien à nettoyer.
   assert.deepEqual(fichiersReglages({ home: h, plateforme: "win32", xdg: null }), []);
 });
@@ -275,6 +285,266 @@ test("ne lève jamais : dossier personnel absent, dossier non modifiable", (t) =
   } finally {
     fs.chmodSync(path.dirname(f), 0o700);
   }
+});
+
+// --- Code - OSS et les serveurs distants -------------------------------------------------------------------------
+
+test("Code - OSS : le dossier de réglages de la version libre de VS Code est nettoyé aussi", () => {
+  const home = maison();
+  const f = reglage(home, "linux", "Code - OSS");
+  ecrire(f, AVEC_NOTRE(home));
+  const r = desinstaller({ home, plateforme: "linux", xdg: null });
+  assert.ok(!fs.readFileSync(f, "utf8").includes(CLE_REGLAGE));
+  assert.equal(r.find((x) => x.fichier === f)?.issue, "retire");
+});
+
+test("serveurs distants : ~/.vscode-server et ses frères, réglages Machine, User et profils", () => {
+  for (const plateforme of ["linux", "darwin"] as const) {
+    const home = maison();
+    const etranger = `{ ${ligne("/opt/autre")} }`;
+    for (const f of reglagesServeurs(home)) ecrire(f, AVEC_NOTRE(home));
+    const profil = path.join(home, ".cursor-server", "data", "User", "profiles", "-1a2b", "settings.json");
+    ecrire(profil, AVEC_NOTRE(home));
+    const autre = path.join(home, ".windsurf-server", "data", "Machine", "settings.json");
+    ecrire(autre, etranger); // un lanceur étranger reste
+    const horsPlan = path.join(home, ".vscode-server", "data", "Machine", "autre.json");
+    ecrire(horsPlan, AVEC_NOTRE(home)); // pas un settings.json : jamais touché
+
+    const r = desinstaller({ home, plateforme, xdg: null });
+
+    for (const f of [...reglagesServeurs(home).filter((x) => x !== autre), profil]) {
+      assert.ok(!fs.readFileSync(f, "utf8").includes(CLE_REGLAGE), `${plateforme} : ${f}`);
+      assert.equal(r.find((x) => x.fichier === f)?.issue, "retire", f);
+    }
+    assert.equal(fs.readFileSync(autre, "utf8"), etranger);
+    assert.equal(fs.readFileSync(horsPlan, "utf8"), AVEC_NOTRE(home));
+  }
+  // Une plateforme sans éditeur connu ne touche pas non plus aux dossiers de serveur.
+  const home = maison();
+  const f = reglagesServeurs(home)[0];
+  ecrire(f, AVEC_NOTRE(home));
+  desinstaller({ home, plateforme: "win32", xdg: null });
+  assert.equal(fs.readFileSync(f, "utf8"), AVEC_NOTRE(home));
+});
+
+// --- Twinseat est encore installé dans un autre éditeur ---------------------------------------------------------
+
+const EXT = "alexdmrx.twinseat-0.3.0";
+const dossierExt = (home: string, dossier: string, nom = EXT): string => {
+  const d = path.join(home, dossier, "extensions", nom);
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+};
+
+test("désinstaller dans Cursor ne retire pas le réglage de VS Code tant que Twinseat y est installé", () => {
+  const home = maison();
+  const code = reglage(home, "linux", "Code");
+  const cursor = reglage(home, "linux", "Cursor");
+  const insiders = reglage(home, "linux", "Code - Insiders");
+  for (const f of [code, cursor, insiders]) ecrire(f, AVEC_NOTRE(home));
+  dossierExt(home, ".vscode"); // Twinseat est toujours dans VS Code
+  const moi = dossierExt(home, ".cursor"); // et c'est l'installation de Cursor qu'on retire : son script tourne de là
+  const journal: string[] = [];
+
+  const r = desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: moi }, (m) => journal.push(m));
+
+  assert.equal(fs.readFileSync(code, "utf8"), AVEC_NOTRE(home), "VS Code garde son réglage : Twinseat y est encore");
+  assert.ok(!fs.readFileSync(cursor, "utf8").includes(CLE_REGLAGE), "Cursor est nettoyé : c'est lui qu'on désinstalle");
+  assert.ok(!fs.readFileSync(insiders, "utf8").includes(CLE_REGLAGE), "Insiders n'a pas Twinseat : nettoyé");
+  assert.equal(r.find((x) => x.fichier === code)?.issue, "installee");
+  assert.equal(r.find((x) => x.fichier === cursor)?.issue, "retire");
+  assert.ok(journal.some((m) => m.includes(".vscode") && /still installed/.test(m)), journal.join("\n"));
+});
+
+test("sans connaître sa propre installation, tout dossier d'installation compte : l'éditeur est laissé tel quel", () => {
+  const home = maison();
+  const f = reglage(home, "darwin", "Cursor");
+  ecrire(f, AVEC_NOTRE(home));
+  dossierExt(home, ".cursor");
+  const r = desinstaller({ home, plateforme: "darwin", xdg: null });
+  assert.equal(fs.readFileSync(f, "utf8"), AVEC_NOTRE(home));
+  assert.equal(r.find((x) => x.fichier === f)?.issue, "installee");
+  // un dossier d'extensions vide, ou sans Twinseat, ne retient rien
+  const propre = maison();
+  const g = reglage(propre, "darwin", "Cursor");
+  ecrire(g, AVEC_NOTRE(propre));
+  dossierExt(propre, ".cursor", "anthropic.claude-code-2.1.319");
+  dossierExt(propre, ".cursor", "alexdmrx.twinseatx-1.0.0"); // un autre identifiant
+  dossierExt(propre, ".cursor", "alexdmrx.twinseat"); // pas de version : pas une installation
+  fs.writeFileSync(path.join(propre, ".cursor", "extensions", EXT), "un fichier, pas un dossier");
+  desinstaller({ home: propre, plateforme: "darwin", xdg: null });
+  assert.ok(!fs.readFileSync(g, "utf8").includes(CLE_REGLAGE));
+});
+
+test("une autre version de Twinseat à côté de la mienne compte ; une installation que VS Code a marquée supprimée (.obsolete), non", () => {
+  const home = maison();
+  const f = reglage(home, "linux", "Code");
+  ecrire(f, AVEC_NOTRE(home));
+  const moi = dossierExt(home, ".vscode");
+  dossierExt(home, ".vscode", "alexdmrx.twinseat-0.2.0");
+  assert.equal(desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: moi }).find((x) => x.fichier === f)?.issue, "installee");
+  assert.equal(fs.readFileSync(f, "utf8"), AVEC_NOTRE(home));
+
+  fs.writeFileSync(path.join(home, ".vscode", "extensions", ".obsolete"), JSON.stringify({ "alexdmrx.twinseat-0.2.0": true }));
+  assert.equal(desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: moi }).find((x) => x.fichier === f)?.issue, "retire");
+  assert.ok(!fs.readFileSync(f, "utf8").includes(CLE_REGLAGE));
+
+  // un .obsolete illisible ne marque rien
+  const autre = maison();
+  const g = reglage(autre, "linux", "Code");
+  ecrire(g, AVEC_NOTRE(autre));
+  const m2 = dossierExt(autre, ".vscode");
+  dossierExt(autre, ".vscode", "alexdmrx.twinseat-0.2.0");
+  fs.writeFileSync(path.join(autre, ".vscode", "extensions", ".obsolete"), "{ pas du json");
+  assert.equal(desinstaller({ home: autre, plateforme: "linux", xdg: null, dossierExtension: m2 }).find((x) => x.fichier === g)?.issue, "installee");
+});
+
+test("un lien vers l'installation de Twinseat (développement) compte comme une installation, sauf si c'est la mienne", () => {
+  const home = maison();
+  const f = reglage(home, "linux", "Code");
+  ecrire(f, AVEC_NOTRE(home));
+  const source = path.join(home, "depot", "twinseat");
+  fs.mkdirSync(source, { recursive: true });
+  fs.mkdirSync(path.join(home, ".vscode", "extensions"), { recursive: true });
+  fs.symlinkSync(source, path.join(home, ".vscode", "extensions", EXT));
+  assert.equal(desinstaller({ home, plateforme: "linux", xdg: null }).find((x) => x.fichier === f)?.issue, "installee");
+  assert.equal(desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: source }).find((x) => x.fichier === f)?.issue, "retire");
+});
+
+test("VSCodium et Code - OSS partagent ~/.vscode-oss : si c'est la mienne, les deux sont nettoyés ; sinon, les deux restent", () => {
+  const home = maison();
+  const oss = reglage(home, "linux", "Code - OSS");
+  const codium = reglage(home, "linux", "VSCodium");
+  ecrire(oss, AVEC_NOTRE(home));
+  ecrire(codium, AVEC_NOTRE(home));
+  const dejaLa = dossierExt(home, ".vscode-oss");
+  desinstaller({ home, plateforme: "linux", xdg: null });
+  assert.equal(fs.readFileSync(oss, "utf8"), AVEC_NOTRE(home));
+  assert.equal(fs.readFileSync(codium, "utf8"), AVEC_NOTRE(home));
+  desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: dejaLa });
+  assert.ok(!fs.readFileSync(oss, "utf8").includes(CLE_REGLAGE));
+  assert.ok(!fs.readFileSync(codium, "utf8").includes(CLE_REGLAGE));
+});
+
+test("serveur distant : ~/.vscode-server/extensions garde les réglages Machine et User tant que Twinseat y est installé", () => {
+  const home = maison();
+  const machine = path.join(home, ".vscode-server", "data", "Machine", "settings.json");
+  const utilisateur = path.join(home, ".vscode-server", "data", "User", "settings.json");
+  const cursorServeur = path.join(home, ".cursor-server", "data", "Machine", "settings.json");
+  for (const f of [machine, utilisateur, cursorServeur]) ecrire(f, AVEC_NOTRE(home));
+  const dejaLa = dossierExt(home, ".vscode-server");
+  const moi = dossierExt(home, ".cursor-server");
+  desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: moi });
+  assert.equal(fs.readFileSync(machine, "utf8"), AVEC_NOTRE(home));
+  assert.equal(fs.readFileSync(utilisateur, "utf8"), AVEC_NOTRE(home));
+  assert.ok(!fs.readFileSync(cursorServeur, "utf8").includes(CLE_REGLAGE));
+  desinstaller({ home, plateforme: "linux", xdg: null, dossierExtension: dejaLa });
+  assert.ok(!fs.readFileSync(machine, "utf8").includes(CLE_REGLAGE));
+  assert.ok(!fs.readFileSync(utilisateur, "utf8").includes(CLE_REGLAGE));
+});
+
+test("dossier d'extensions qu'on ne peut pas lire : dans le doute, rien n'est touché", (t) => {
+  if (process.getuid?.() === 0) {
+    t.diagnostic("exécuté en root : l'essai du dossier illisible est sauté");
+    return;
+  }
+  const home = maison();
+  const f = reglage(home, "linux", "Cursor");
+  ecrire(f, AVEC_NOTRE(home));
+  const ext = path.join(home, ".cursor", "extensions");
+  fs.mkdirSync(ext, { recursive: true });
+  fs.chmodSync(ext, 0o000);
+  try {
+    const r = desinstaller({ home, plateforme: "linux", xdg: null });
+    assert.equal(fs.readFileSync(f, "utf8"), AVEC_NOTRE(home));
+    assert.equal(r.find((x) => x.fichier === f)?.issue, "installee");
+  } finally {
+    fs.chmodSync(ext, 0o700);
+  }
+});
+
+// --- Fichiers qu'on ne réécrit pas sans risque ------------------------------------------------------------------
+
+test("octets qui ne sont pas de l'UTF-8 (un « é » en latin-1 dans un commentaire) : le fichier n'est pas touché, octet pour octet", () => {
+  const home = maison();
+  const f = reglage(home, "darwin", "Code");
+  const brut = Buffer.concat([
+    Buffer.from(`// r`, "utf8"),
+    Buffer.from([0xe9]), // « é » en latin-1 : invalide en UTF-8
+    Buffer.from(`glages\n{\n  "editor.fontSize": 14,\n  ${ligne(cheminLanceur(home))},\n  "files.autoSave": "off"\n}\n`, "utf8"),
+  ]);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, brut, { mode: 0o600 });
+  const journal: string[] = [];
+  const r = desinstaller({ home, plateforme: "darwin", xdg: null }, (m) => journal.push(m));
+  assert.ok(fs.readFileSync(f).equals(brut), "les octets sont identiques");
+  assert.equal(r.find((x) => x.fichier === f)?.issue, "abstention");
+  assert.deepEqual(fs.readdirSync(path.dirname(f)), ["settings.json"], "aucun fichier temporaire");
+  assert.ok(journal.some((m) => /UTF-8/.test(m)), journal.join("\n"));
+  assert.ok(brut.includes(CLE_REGLAGE), "le lanceur y est toujours : c'est bien le choix d'un fichier qu'on n'ose pas réécrire");
+});
+
+test("UTF-8 valide (accents, BOM, émoji) : nettoyé, et chaque octet qui reste est celui d'origine", () => {
+  const home = maison();
+  const f = reglage(home, "darwin", "Code");
+  const avant = `﻿// réglages de Zoé 🚀\r\n{\r\n  "editor.fontFamily": "Fira Code, 'Noto Émoji'",\r\n  ${ligne(cheminLanceur(home))},\r\n  "files.autoSave": "off"\r\n}\r\n`;
+  const attendu = `﻿// réglages de Zoé 🚀\r\n{\r\n  "editor.fontFamily": "Fira Code, 'Noto Émoji'",\r\n  "files.autoSave": "off"\r\n}\r\n`;
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, avant, { mode: 0o600 });
+  assert.equal(desinstaller({ home, plateforme: "darwin", xdg: null }).find((x) => x.fichier === f)?.issue, "retire");
+  assert.ok(fs.readFileSync(f).equals(Buffer.from(attendu, "utf8")));
+});
+
+test("fichier non modifiable par son propriétaire (mode 0444) : intact, et son mode aussi", () => {
+  const home = maison();
+  const f = reglage(home, "darwin", "Code");
+  ecrire(f, AVEC_NOTRE(home), 0o444);
+  const journal: string[] = [];
+  const r = desinstaller({ home, plateforme: "darwin", xdg: null }, (m) => journal.push(m));
+  assert.equal(fs.readFileSync(f, "utf8"), AVEC_NOTRE(home));
+  assert.equal(fs.statSync(f).mode & 0o777, 0o444);
+  assert.equal(r.find((x) => x.fichier === f)?.issue, "abstention");
+  assert.deepEqual(fs.readdirSync(path.dirname(f)), ["settings.json"]);
+  assert.ok(journal.some((m) => /not writable/.test(m)), journal.join("\n"));
+  // seul le bit d'écriture du propriétaire compte : 0400 (lecture seule), 0440, 0404…
+  for (const mode of [0o400, 0o440, 0o404]) {
+    fs.chmodSync(f, mode);
+    assert.equal(desinstaller({ home, plateforme: "darwin", xdg: null }).find((x) => x.fichier === f)?.issue, "abstention", mode.toString(8));
+  }
+  // un fichier modifiable (0200, écriture seule pour le propriétaire) l'est : c'est la lecture qui manquerait, pas l'écriture
+  fs.chmodSync(f, 0o600);
+  assert.equal(desinstaller({ home, plateforme: "darwin", xdg: null }).find((x) => x.fichier === f)?.issue, "retire");
+});
+
+test("fichier à plusieurs liens physiques : intact (le renommage en ferait deux fichiers), les deux noms gardent le même contenu", () => {
+  const home = maison();
+  const f = reglage(home, "darwin", "Code");
+  ecrire(f, AVEC_NOTRE(home));
+  const jumeau = path.join(home, "settings-jumeau.json");
+  fs.linkSync(f, jumeau);
+  const journal: string[] = [];
+  const r = desinstaller({ home, plateforme: "darwin", xdg: null }, (m) => journal.push(m));
+  assert.equal(fs.readFileSync(f, "utf8"), AVEC_NOTRE(home));
+  assert.equal(fs.readFileSync(jumeau, "utf8"), AVEC_NOTRE(home));
+  assert.equal(fs.statSync(f).nlink, 2, "le lien physique existe toujours");
+  assert.equal(fs.statSync(f).ino, fs.statSync(jumeau).ino);
+  assert.equal(r.find((x) => x.fichier === f)?.issue, "abstention");
+  assert.ok(journal.some((m) => /hard links/.test(m)), journal.join("\n"));
+  // le jumeau retiré, il n'y a plus qu'un lien : le fichier est nettoyé
+  fs.rmSync(jumeau);
+  assert.equal(desinstaller({ home, plateforme: "darwin", xdg: null }).find((x) => x.fichier === f)?.issue, "retire");
+});
+
+test("settings.json lien symbolique vers un fichier à lien physique ou en lecture seule : la cible n'est pas réécrite non plus", () => {
+  const home = maison();
+  const cible = path.join(home, "dotfiles", "settings.json");
+  ecrire(cible, AVEC_NOTRE(home), 0o444);
+  const lien = reglage(home, "darwin", "Code");
+  fs.mkdirSync(path.dirname(lien), { recursive: true });
+  fs.symlinkSync(cible, lien);
+  desinstaller({ home, plateforme: "darwin", xdg: null });
+  assert.ok(fs.lstatSync(lien).isSymbolicLink());
+  assert.equal(fs.readFileSync(cible, "utf8"), AVEC_NOTRE(home));
 });
 
 // --- Le point d'entrée de VS Code : node ./out/desinstallation.js -------------------------------

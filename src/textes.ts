@@ -7,6 +7,11 @@
 // - Les listes (jours, mois) sont des textes séparés par « | » : `liste("clé")`.
 // - Le nom du produit (« Twinseat ») ne se traduit pas.
 // - Les textes de package.json (titres de commandes…) sont dans package.nls*.json.
+// - `t` pour un texte qui n'a que nos propres variables (nombres, tables d'ici). `tSur` pour tout
+//   texte qui entre dans une notification ou un menu : ses variables textuelles passent par
+//   `texteSur` (voir texteSur.ts : VS Code rend `[x](command:…)` cliquable dans une notification).
+//   Les modules qui parlent à vscode n'appellent donc jamais `t` avec des variables.
+import { LONGUEUR_TEXTE_SUR, texteSur } from "./texteSur";
 
 export type Langue = "en" | "fr";
 export type Variables = Record<string, string | number>;
@@ -68,7 +73,7 @@ export const en = {
   "alerte.voir": "Show accounts",
   "releve.introuvable": "Claude Code not found: can't read usage.",
   "releve.enCours": "A usage read is already running in another window.",
-  "contexte.longue": "The conversation “{titre}” is long (≈ {jetons} tokens). Consider /relais before it gets compacted.",
+  "contexte.longue": "The conversation “{titre}” is long (≈ {jetons} tokens). Consider saving your progress before it gets compacted.",
   "contexte.sansTitre": "Untitled conversation",
   "connecter.titre": "Which account do you want to sign in to?",
   "connecter.terminal": "Sign in to account “{compte}”",
@@ -124,7 +129,7 @@ export const en = {
   "reparation.lanceur": "launcher copied again",
   "reparation.installation": "missing folders and links created",
   "reparation.droits": "account {compte}: .claude.json set to mode 600",
-  "diagnostic.copie": "Diagnostics copied to the clipboard. They contain no email address, account name or conversation: paste them into your issue.",
+  "diagnostic.copie": "Diagnostics copied to the clipboard. They contain no email address, account name, conversation or token: paste them into your issue.",
   "diag.reparable": "can be repaired",
   "diag.erreur": "This check couldn't run ({code}).",
   "diag.nom.plateforme": "Platform",
@@ -271,7 +276,7 @@ export const fr: Record<Cle, string> = {
   "alerte.voir": "Voir les comptes",
   "releve.introuvable": "Claude Code est introuvable : impossible de relever les quotas.",
   "releve.enCours": "Un relevé est déjà en cours dans une autre fenêtre.",
-  "contexte.longue": "La conversation « {titre} » est longue (≈ {jetons} jetons). Pensez à /relais avant qu'elle ne soit compactée.",
+  "contexte.longue": "La conversation « {titre} » est longue (≈ {jetons} jetons). Pensez à enregistrer votre avancement avant qu'elle ne soit compactée.",
   "contexte.sansTitre": "Conversation sans titre",
   "connecter.titre": "Quel compte connecter ?",
   "connecter.terminal": "Connexion du compte « {compte} »",
@@ -323,7 +328,7 @@ export const fr: Record<Cle, string> = {
   "reparation.lanceur": "lanceur copié de nouveau",
   "reparation.installation": "dossiers et liens manquants créés",
   "reparation.droits": "compte {compte} : .claude.json remis en mode 600",
-  "diagnostic.copie": "Diagnostic copié dans le presse-papiers. Il ne contient ni adresse e-mail, ni nom de compte, ni conversation : collez-le dans votre rapport.",
+  "diagnostic.copie": "Diagnostic copié dans le presse-papiers. Il ne contient ni adresse e-mail, ni nom de compte, ni conversation, ni jeton : collez-le dans votre rapport.",
   "diag.reparable": "réparable",
   "diag.erreur": "Cette vérification n'a pas pu s'exécuter ({code}).",
   "diag.nom.plateforme": "Plateforme",
@@ -434,6 +439,17 @@ export function traduire(l: Langue, cle: Cle, variables?: Variables): string {
 /** Texte de la langue choisie. */
 export function t(cle: Cle, variables?: Variables): string {
   return traduire(courante, cle, variables);
+}
+
+/**
+ * Comme `t`, pour un message ou un menu de VS Code : chaque variable textuelle est rendue sûre
+ * (`texteSur`, `max` caractères au plus), les nombres ne changent pas. Le modèle du texte, lui, est le nôtre.
+ */
+export function tSur(cle: Cle, variables?: Variables, max: number = 2 * LONGUEUR_TEXTE_SUR): string {
+  if (!variables) return t(cle);
+  const sures: Variables = {};
+  for (const [nom, valeur] of Object.entries(variables)) sures[nom] = typeof valeur === "string" ? texteSur(valeur, max) : valeur;
+  return t(cle, sures);
 }
 
 /** Liste de la langue choisie (jours, mois). */

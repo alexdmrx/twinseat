@@ -39,6 +39,25 @@ export function dossierRelais(dossierProjet: string, home = os.homedir()): strin
   return path.join(base(home), "relais", cleProjetClaude(racineProjet(dossierProjet)));
 }
 
+/**
+ * Les commandes personnelles de relais (/relais pour écrire une note, /reprendre pour la relire) sont des
+ * commandes de l'utilisateur, pas de Twinseat : elles existent seulement s'il les a créées, soit
+ * ~/.claude/commands/relais.md, soit ~/.claude/skills/relais/. Sans elles, Twinseat ne propose ni le bouton
+ * « Copy /relais » ni la section « Handoff notes » : copier une commande qui n'existe pas n'aide personne.
+ * Les liens sont suivis (un dossier de réglages géré par un gestionnaire de dotfiles).
+ */
+export function commandesRelaisPresentes(home = os.homedir()): boolean {
+  const est = (chemin: string, dossier: boolean): boolean => {
+    try {
+      const st = fs.statSync(chemin);
+      return dossier ? st.isDirectory() : st.isFile();
+    } catch {
+      return false;
+    }
+  };
+  return est(path.join(base(home), "commands", "relais.md"), false) || est(path.join(base(home), "skills", "relais"), true);
+}
+
 /** Nom de note accepté, rien d'autre (jamais un chemin). */
 export function estNomNote(nom: unknown): nom is string {
   return typeof nom === "string" && /^\d{4}-\d{2}-\d{2}-\d{4}\.md$/.test(nom);

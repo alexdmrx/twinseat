@@ -3,6 +3,7 @@ import { Compte } from "./chemins";
 import { Quotas } from "./quotas";
 import { titreOnglet } from "./registre";
 import { heure, liste, t } from "./textes";
+import { texteSur } from "./texteSur";
 
 export type Niveau = "normal" | "attention" | "critique";
 
@@ -73,11 +74,28 @@ export function libelleQuota(q: Quotas | undefined): string {
   return morceaux.length ? morceaux.join(" · ") : t("quota.indisponible");
 }
 
-/** « Account A is at 92% (5-hour limit, resets at 16:39). » `compte` = le libellé du compte : « A » ou son nom. */
+/** « Account A is at 92% (5-hour limit, resets at 16:39). » `compte` = le libellé du compte : « A » ou son nom (rendu sûr : la phrase va dans une notification). */
 export function phraseAlerte(compte: string, pct: number, limite: "5 h" | "semaine", reset?: string, maintenant = Date.now()): string {
   const nom = t(limite === "5 h" ? "alerte.limite5h" : "alerte.limiteSemaine");
   const retour = phraseRetour(reset, maintenant);
-  return t("alerte.phrase", { compte, pct: pourcent(pct), limite: nom, retour: retour ? `, ${retour}` : "" });
+  return t("alerte.phrase", { compte: texteSur(compte, 24), pct: pourcent(pct), limite: nom, retour: retour ? `, ${retour}` : "" });
+}
+
+/** Les formules d'abonnement que Claude Code annonce, telles qu'on les écrit à l'écran. */
+const PLANS: Record<string, string> = { free: "Free", pro: "Pro", max: "Max", team: "Team", enterprise: "Enterprise" };
+
+/**
+ * La formule d'un compte (« max », « pro »… : ce que Claude Code annonce) écrite pour l'écran : « Max »,
+ * « Pro », « Team », « Enterprise », « Free ». Une valeur inconnue garde son texte, première lettre en
+ * majuscule. Rendue sûre (`texteSur`, 24 caractères au plus) : elle vient d'un fichier. « » si rien.
+ */
+export function nomPlan(plan: unknown): string {
+  const brut = texteSur(plan, 24);
+  if (!brut) return "";
+  const cle = brut.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(PLANS, cle)) return PLANS[cle];
+  const [premier, ...reste] = [...brut];
+  return premier.toUpperCase() + reste.join("");
 }
 
 function normaliser(s: string): string {

@@ -1,8 +1,8 @@
 # Twinseat — architecture notes
 
-These are the facts the design rests on. They were first established against Claude Code 2.1.289 and the Claude Code VS Code extension 2.1.291 (October 2026). Apart from `CLAUDE_CONFIG_DIR` itself, none of this is documented.
+These are the facts the design rests on. They were first established against Claude Code 2.1.289 and the Claude Code VS Code extension 2.1.291 (October 2026). Apart from `CLAUDE_CONFIG_DIR` and the existence of the `claudeCode.claudeProcessWrapper` setting, none of this is documented.
 
-The ones Twinseat's code depends on are re-checked every night against the latest release by [`scripts/compat-check.sh`](../scripts/compat-check.sh) (last manual run: Claude Code 2.1.322, November 10, 2026).
+The names and flags Twinseat's code depends on are re-checked for presence every night against the latest release by [`scripts/compat-check.sh`](../scripts/compat-check.sh) (last manual run: Claude Code 2.1.322, November 10, 2026).
 
 ## Claude Code facts
 
@@ -27,7 +27,7 @@ The ones Twinseat's code depends on are re-checked every night against the lates
 
 - **Who writes it.** The launcher creates an entry when a conversation starts, and never overwrites one. A conversation started before the extension existed takes the account it is first resumed with.
 - **Copies.** A fork (`--fork-session`) inherits the account of the original.
-- **Moving a conversation.** “Reprendre sur B” is the only action that changes an entry. It asks you to close the conversation's tab first if it is still open.
+- **Moving a conversation.** Only “Resume on …” changes an entry. It asks you to close the conversation's tab first if it is still open.
 - **Cleanup.** Once a day, entries older than two days are removed if no history file exists for their conversation.
 
 ## Why a shell script for the launcher

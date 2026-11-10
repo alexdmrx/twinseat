@@ -8,12 +8,12 @@
 - **macOS and Linux.** On other platforms Twinseat stays inactive and says so.
 - **Twinseat: Check and Repair Setup** runs 13 checks and repairs only what is safe to repair.
 - **Twinseat: Copy Diagnostics** gives a report with no email, account name, conversation or token.
-- **Clean uninstall.** Twinseat's launcher setting is removed from VS Code, Insiders, VSCodium, Cursor and Windsurf. Comments and formatting in your settings are kept.
-- **Shell aliases are only added on request**, after you confirm, into zsh, bash or an existing `~/.bash_profile`.
+- **Clean uninstall.** At the editor's next restart, Twinseat's launcher setting is removed from the user settings of VS Code, Insiders, VSCodium, Cursor and Windsurf. Comments and formatting are kept. This is tested on settings files, not yet inside Cursor or Windsurf.
+- **Shell aliases are only added on request**, after you confirm, into `~/.zshrc`, `~/.bashrc` or an existing `~/.bash_profile`.
 - **Launcher, Linux fixes:**
   - when `uuidgen` is missing, the ID comes from the kernel;
   - a launcher started by its shebang is no longer mistaken for an open conversation.
-- **CI** runs the full suite on macOS and Linux. A nightly job checks the latest Claude Code release for every behaviour Twinseat relies on.
+- **CI** runs the full suite on macOS and Linux. A nightly job checks that the settings, commands, flags and internal names Twinseat relies on are still present in the latest Claude Code release.
 
 ## 0.2.0 — 2026-10-08
 

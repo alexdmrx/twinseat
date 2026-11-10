@@ -9,7 +9,7 @@ import {
 } from "./diagnostic";
 import { REGLAGE_LANCEUR } from "./fenetre";
 import { afficherJournal, journal, journalBrut } from "./journal";
-import { t } from "./textes";
+import { t, tSur } from "./textes";
 
 /** Ce que VS Code sait, rassemblé pour le cœur (lanceur livré, version, réglage global du lanceur). */
 function entrees(context: vscode.ExtensionContext): EntreesDiagnostic {
@@ -39,7 +39,7 @@ function montrerResume(verifs: readonly Verification[]): void {
 
 function phraseAction(action: ActionReparation): string {
   if (action === "lanceur" || action === "installation") return t(action === "lanceur" ? "reparation.lanceur" : "reparation.installation");
-  return t("reparation.droits", { compte: action.slice("droits-".length) });
+  return tSur("reparation.droits", { compte: action.slice("droits-".length) });
 }
 
 let enCours = false;
@@ -54,16 +54,16 @@ export async function verifierEtReparer(context: vscode.ExtensionContext): Promi
     const b = bilan(avant);
     journal(`vérification : ${b.ok} ok, ${b.warn} avertissement(s), ${b.fail} échec(s), ${b.reparables} réparable(s)`);
     if (!b.warn && !b.fail) {
-      void vscode.window.showInformationMessage(t("verifier.toutBon", { n: avant.length }));
+      void vscode.window.showInformationMessage(tSur("verifier.toutBon", { n: avant.length }));
       return;
     }
-    const resume = t("verifier.bilan", { ok: b.ok, warn: b.warn, fail: b.fail });
+    const resume = tSur("verifier.bilan", { ok: b.ok, warn: b.warn, fail: b.fail });
     if (!b.reparables) {
-      void vscode.window.showWarningMessage(t("verifier.aLire", { bilan: resume }));
+      void vscode.window.showWarningMessage(tSur("verifier.aLire", { bilan: resume }));
       return;
     }
     const reparerTexte = t("verifier.reparer");
-    const choix = await vscode.window.showWarningMessage(t("verifier.reparables", { bilan: resume, n: b.reparables }), reparerTexte);
+    const choix = await vscode.window.showWarningMessage(tSur("verifier.reparables", { bilan: resume, n: b.reparables }), reparerTexte);
     if (choix !== reparerTexte) return;
 
     const r = reparer(e);
@@ -75,8 +75,8 @@ export async function verifierEtReparer(context: vscode.ExtensionContext): Promi
     if (r.erreurs.length) void vscode.window.showWarningMessage(t("verifier.echecs"));
     else if (!apres.warn && !apres.fail) void vscode.window.showInformationMessage(t("verifier.repareToutBon"));
     else {
-      const bilanApres = t("verifier.bilan", { ok: apres.ok, warn: apres.warn, fail: apres.fail });
-      void vscode.window.showWarningMessage(`${t("verifier.repare", { bilan: bilanApres })} ${t("verifier.reste")}`);
+      const bilanApres = tSur("verifier.bilan", { ok: apres.ok, warn: apres.warn, fail: apres.fail });
+      void vscode.window.showWarningMessage(`${tSur("verifier.repare", { bilan: bilanApres })} ${t("verifier.reste")}`);
     }
   } catch (err) {
     journal(`vérification : ${(err as Error).message}`);

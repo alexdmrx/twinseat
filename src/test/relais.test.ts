@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { cleProjetClaude } from "../chemins";
 import {
-  cheminNote, dateNote, dossierRelais, estNomNote, jetonsContexte, jetonsTexte, listerNotes,
+  cheminNote, commandesRelaisPresentes, dateNote, dossierRelais, estNomNote, jetonsContexte, jetonsTexte, listerNotes,
   marquerAlerteContexte, nettoyerAlertesContexte, titreNote,
 } from "../relais";
 import { definirLangue } from "../textes";
@@ -126,4 +126,52 @@ test("racineProjet : sous-dossier et worktree → racine du dépôt principal (c
   assert.equal(racineProjet(px.join(t, "copie")), depot);
   assert.equal(racineProjet(t), t); // hors dépôt : le dossier lui-même
   fsx.rmSync(t, { recursive: true, force: true });
+});
+
+// --- Les commandes personnelles /relais existent-elles ? ---------------------------------------------------
+
+test("commandesRelaisPresentes : absentes d'un dossier personnel vide ou sans commandes", () => {
+  const h = maison();
+  assert.equal(commandesRelaisPresentes(h), false, "aucun dossier ~/.claude");
+  fs.mkdirSync(path.join(h, ".claude", "commands"), { recursive: true });
+  fs.mkdirSync(path.join(h, ".claude", "skills"), { recursive: true });
+  assert.equal(commandesRelaisPresentes(h), false, "dossiers vides");
+  // d'autres commandes, un nom voisin, un dossier à la place du fichier, un fichier à la place du dossier
+  fs.writeFileSync(path.join(h, ".claude", "commands", "reprendre.md"), "x");
+  fs.writeFileSync(path.join(h, ".claude", "commands", "relais.md.bak"), "x");
+  fs.mkdirSync(path.join(h, ".claude", "commands", "relais.md"));
+  fs.mkdirSync(path.join(h, ".claude", "skills", "relais-autre"));
+  assert.equal(commandesRelaisPresentes(h), false);
+  fs.writeFileSync(path.join(h, ".claude", "skills", "relais"), "un fichier, pas un dossier");
+  assert.equal(commandesRelaisPresentes(h), false);
+  // la copie de relais.md d'un projet n'est pas la commande personnelle
+  fs.mkdirSync(path.join(h, "projet", ".claude", "commands"), { recursive: true });
+  fs.writeFileSync(path.join(h, "projet", ".claude", "commands", "relais.md"), "x");
+  assert.equal(commandesRelaisPresentes(h), false);
+});
+
+test("commandesRelaisPresentes : ~/.claude/commands/relais.md, ou ~/.claude/skills/relais/", () => {
+  const parCommande = maison();
+  fs.mkdirSync(path.join(parCommande, ".claude", "commands"), { recursive: true });
+  fs.writeFileSync(path.join(parCommande, ".claude", "commands", "relais.md"), "# relais\n");
+  assert.equal(commandesRelaisPresentes(parCommande), true);
+
+  const parSkill = maison();
+  fs.mkdirSync(path.join(parSkill, ".claude", "skills", "relais"), { recursive: true });
+  assert.equal(commandesRelaisPresentes(parSkill), true);
+
+  // un lien (gestionnaire de dotfiles, ou dossier commun des comptes) est suivi ; un lien cassé ne compte pas
+  const parLien = maison();
+  const dotfiles = path.join(parLien, "dotfiles");
+  fs.mkdirSync(path.join(dotfiles, "skills-relais"), { recursive: true });
+  fs.writeFileSync(path.join(dotfiles, "relais.md"), "x");
+  fs.mkdirSync(path.join(parLien, ".claude", "commands"), { recursive: true });
+  fs.mkdirSync(path.join(parLien, ".claude", "skills"), { recursive: true });
+  fs.symlinkSync(path.join(dotfiles, "relais.md"), path.join(parLien, ".claude", "commands", "relais.md"));
+  assert.equal(commandesRelaisPresentes(parLien), true);
+  fs.rmSync(path.join(parLien, ".claude", "commands", "relais.md"));
+  fs.symlinkSync(path.join(dotfiles, "absent.md"), path.join(parLien, ".claude", "commands", "relais.md"));
+  assert.equal(commandesRelaisPresentes(parLien), false, "lien cassé");
+  fs.symlinkSync(path.join(dotfiles, "skills-relais"), path.join(parLien, ".claude", "skills", "relais"));
+  assert.equal(commandesRelaisPresentes(parLien), true);
 });

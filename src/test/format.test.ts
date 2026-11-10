@@ -1,6 +1,6 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { ageTexte, compteDepuisOnglet, libelleQuota, momentLocal, niveau, phraseAlerte, phraseMaj, phraseRetour, pourcent } from "../format";
+import { ageTexte, compteDepuisOnglet, libelleQuota, momentLocal, niveau, nomPlan, phraseAlerte, phraseMaj, phraseRetour, pourcent } from "../format";
 import { Quotas } from "../quotas";
 import { titreOnglet } from "../registre";
 import { definirLangue } from "../textes";
@@ -122,6 +122,30 @@ test("phraseAlerte (fr)", () => {
     assert.equal(phraseAlerte("A", 92, "5 h", jour(7, 16, 39), now), "Le compte « A » est à 92 % (limite de 5 h, retour à zéro à 16 h 39).");
     assert.equal(phraseAlerte("B", 91.4, "semaine", undefined, now), "Le compte « B » est à 91 % (limite de la semaine).");
   });
+});
+
+test("nomPlan : « max » → « Max », et les autres formules connues, quelle que soit la casse", () => {
+  for (const [brut, attendu] of [["max", "Max"], ["pro", "Pro"], ["team", "Team"], ["enterprise", "Enterprise"], ["free", "Free"], ["MAX", "Max"], [" Pro ", "Pro"], ["eNtErPrIsE", "Enterprise"]]) {
+    assert.equal(nomPlan(brut), attendu, brut);
+  }
+});
+
+test("nomPlan : une valeur inconnue garde son texte, première lettre en majuscule ; rien ne plante", () => {
+  assert.equal(nomPlan("max_20x"), "Max_20x");
+  assert.equal(nomPlan("startup"), "Startup");
+  assert.equal(nomPlan("éducation"), "Éducation");
+  assert.equal(nomPlan("Claude Max"), "Claude Max");
+  assert.equal(nomPlan("constructor"), "Constructor", "pas un membre d'Object.prototype");
+  assert.equal(nomPlan("__proto__"), "__proto__");
+  for (const vide of [undefined, null, "", "   ", "\u200B"]) assert.equal(nomPlan(vide), "");
+  assert.equal(nomPlan(7), "7");
+});
+
+test("nomPlan : vient d'un fichier, donc sûr et court", () => {
+  const s = nomPlan("[x](command:workbench.action.debug.run)");
+  assert.doesNotMatch(s, /[[\]()]/);
+  assert.doesNotMatch(s, /command\s*:/i);
+  assert.ok([...nomPlan("p".repeat(100))].length <= 24);
 });
 
 test("compteDepuisOnglet : appariement sans ambiguïté", () => {

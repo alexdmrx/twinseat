@@ -98,6 +98,8 @@ export function installer(lanceurSource: string, home = os.homedir(), options: {
 /** Copie le lanceur à jour dans ~/.claude/comptes/bin (écriture atomique) et le rend exécutable. */
 export function copierLanceur(source: string, home: string, rapport: Rapport): void {
   const dest = cheminLanceur(home);
+  // Le dossier bin/ a pu disparaître (nettoyage à la main) : la réparation doit pouvoir le recréer.
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
   const neuf = fs.readFileSync(source);
   const actuel = existe(dest) ? fs.readFileSync(dest) : undefined;
   if (!actuel || !actuel.equals(neuf)) {

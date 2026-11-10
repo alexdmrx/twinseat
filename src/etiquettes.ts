@@ -5,6 +5,7 @@
 // que la lettre. Un nom invalide ou absent retombe sur la lettre, sans erreur.
 import { Compte, COMPTES, autreCompte } from "./chemins";
 import { t } from "./textes";
+import { texteSur } from "./texteSur";
 
 /** Étiquettes valides seulement : un compte sans nom choisi n'a pas d'entrée. */
 export type Etiquettes = Partial<Record<Compte, string>>;
@@ -58,14 +59,20 @@ export function etiquettesValides(brut: unknown): Etiquettes {
   return resultat;
 }
 
-/** Ce que l'on écrit dans une phrase ou sur un bouton : le nom, sinon la lettre. */
+/**
+ * Ce que l'on écrit dans une phrase ou sur un bouton : le nom, sinon la lettre. Les noms sont déjà
+ * validés (lettres, chiffres, espace, « _ », « . », « - »), et passent quand même par `texteSur` :
+ * ce texte entre dans des notifications, où VS Code rend `[x](command:…)` cliquable.
+ */
 export function libelle(c: Compte, etiquettes: Etiquettes): string {
-  return etiquettes[c] ?? c;
+  const nom = etiquettes[c];
+  return nom === undefined ? c : texteSur(nom, LONGUEUR_MAX) || c;
 }
 
 /** Titre d'un compte (carte, menu) : le nom, sinon « Account A » / « Compte A ». */
 export function titreCompte(c: Compte, etiquettes: Etiquettes): string {
-  return etiquettes[c] ?? t("compte.nom", { compte: c });
+  const nom = etiquettes[c];
+  return (nom === undefined ? "" : texteSur(nom, LONGUEUR_MAX)) || t("compte.nom", { compte: c });
 }
 
 /**

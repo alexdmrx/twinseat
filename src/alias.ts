@@ -6,7 +6,7 @@
 import * as vscode from "vscode";
 import { ajouterAlias, LIGNES_ALIAS, planAlias } from "./installation";
 import { journal } from "./journal";
-import { t } from "./textes";
+import { t, tSur } from "./textes";
 
 export async function proposerAlias(): Promise<void> {
   const detail = LIGNES_ALIAS.join("\n");
@@ -14,18 +14,18 @@ export async function proposerAlias(): Promise<void> {
 
   if (plan.action === "copier") {
     await vscode.env.clipboard.writeText(detail);
-    const message = plan.fichierConseille ? t("alias.bashSansProfil", { fichier: plan.fichierConseille }) : t("alias.shellInconnu");
+    const message = plan.fichierConseille ? tSur("alias.bashSansProfil", { fichier: plan.fichierConseille }) : t("alias.shellInconnu");
     void vscode.window.showInformationMessage(message, { modal: true, detail });
     return;
   }
 
   const { fichier } = plan;
   if (plan.dejaFait) {
-    void vscode.window.showInformationMessage(t("alias.dejaLa", { fichier }));
+    void vscode.window.showInformationMessage(tSur("alias.dejaLa", { fichier }));
     return;
   }
   const ajouter = t("alias.ajouter");
-  const choix = await vscode.window.showInformationMessage(t("alias.confirmer", { fichier }), { modal: true, detail }, ajouter);
+  const choix = await vscode.window.showInformationMessage(tSur("alias.confirmer", { fichier }), { modal: true, detail }, ajouter);
   if (choix !== ajouter) {
     void vscode.window.showInformationMessage(t("rienChange"));
     return;
@@ -33,9 +33,9 @@ export async function proposerAlias(): Promise<void> {
   try {
     const ecrit = ajouterAlias(fichier);
     journal(ecrit ? `alias ajoutés à ${fichier}` : `alias déjà présents dans ${fichier}`);
-    void vscode.window.showInformationMessage(t(ecrit ? "alias.ajoutes" : "alias.dejaLa", { fichier }));
+    void vscode.window.showInformationMessage(tSur(ecrit ? "alias.ajoutes" : "alias.dejaLa", { fichier }));
   } catch (e) {
     journal(`alias : ${(e as Error).message}`);
-    void vscode.window.showWarningMessage(t("alias.echec", { fichier }));
+    void vscode.window.showWarningMessage(tSur("alias.echec", { fichier }));
   }
 }

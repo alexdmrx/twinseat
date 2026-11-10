@@ -9,11 +9,11 @@ import * as fs from "node:fs";
 import * as vscode from "vscode";
 import { Compte, COMPTES, estCompte, estNumeroConversation, sousDossier } from "./chemins";
 import { Etiquettes, libelle, titreCompte } from "./etiquettes";
-import { ageTexte, niveau, Niveau, phraseMaj, phraseRetour, pourcent } from "./format";
+import { ageTexte, niveau, Niveau, nomPlan, phraseMaj, phraseRetour, pourcent } from "./format";
 import { infosCompte } from "./installation";
 import { journal } from "./journal";
 import { derniersQuotas, Fenetre } from "./quotas";
-import { cheminNote, estNomNote, listerNotes, NoteRelais } from "./relais";
+import { cheminNote, commandesRelaisPresentes, estNomNote, listerNotes, NoteRelais } from "./relais";
 import { conversationsOuvertes, conversationsRecentes, conversationsVivantes } from "./registre";
 import { langue, t, textesWebview } from "./textes";
 
@@ -40,6 +40,7 @@ interface CarteCompte {
   etiquette?: string;
   email?: string;
   connecte: boolean;
+  /** La formule d'abonnement écrite pour l'écran (« Max », « Pro »…), si Claude Code l'a annoncée. */
   plan?: string;
   fenetre: boolean;
   barres: Barre[];
@@ -64,6 +65,8 @@ export interface Etat {
   ouvertes: LigneConversation[];
   recentes: LigneConversation[];
   aDossier: boolean;
+  /** L'utilisateur a-t-il la commande /relais ? Sinon la section « Handoff notes » n'est pas montrée du tout. */
+  relaisDispo: boolean;
   relais: NoteRelais[];
 }
 
@@ -225,7 +228,7 @@ export class Panneau implements vscode.WebviewViewProvider {
         etiquette: etiquettes[c],
         email: i.email,
         connecte: i.connecte,
-        plan: q?.plan,
+        plan: q?.plan ? nomPlan(q.plan) || undefined : undefined,
         fenetre: etatLanceur === "actif" && c === this.deps.compteFenetre(),
         barres,
         maj: q && barres.length ? phraseMaj(q, maintenant) : undefined,
@@ -242,6 +245,7 @@ export class Panneau implements vscode.WebviewViewProvider {
       ouverte: c.ouverte,
     });
     const dossier = this.deps.dossierProjet();
+    const relaisDispo = commandesRelaisPresentes();
     return {
       banniere,
       peutActiver: etatLanceur === "libre" && tousConnectes,
@@ -250,7 +254,8 @@ export class Panneau implements vscode.WebviewViewProvider {
       ouvertes: conversationsOuvertes(vivantes).map(ligne),
       recentes: dossier ? conversationsRecentes(dossier, vivantes).map(ligne) : [],
       aDossier: Boolean(dossier),
-      relais: dossier ? listerNotes(dossier, 3) : [],
+      relaisDispo,
+      relais: dossier && relaisDispo ? listerNotes(dossier, 3) : [],
     };
   }
 
@@ -396,9 +401,12 @@ function rendre(e) {
   if (!e.aDossier) racine.appendChild(el('div', 'vide', tr('web.aucunDossier')));
   else if (!e.recentes.length) racine.appendChild(el('div', 'vide', tr('web.aucuneRecente')));
   for (const c of e.recentes) racine.appendChild(conv(c, true));
-  racine.appendChild(el('h2', '', tr('web.titreRelais')));
-  if (!e.relais.length) racine.appendChild(el('div', 'vide', tr('web.aucuneNote')));
-  for (const n of e.relais) racine.appendChild(note(n));
+  // Sans la commande /relais de l'utilisateur, pas de section « Handoff notes » du tout.
+  if (e.relaisDispo) {
+    racine.appendChild(el('h2', '', tr('web.titreRelais')));
+    if (!e.relais.length) racine.appendChild(el('div', 'vide', tr('web.aucuneNote')));
+    for (const n of e.relais) racine.appendChild(note(n));
+  }
   const bas = el('div', 'actions');
   bas.appendChild(bouton(tr('web.verifier'), { action: 'verifier' }, true));
   racine.appendChild(bas);
