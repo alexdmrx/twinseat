@@ -72,7 +72,7 @@ Then use **Rename** on each card to call the accounts `work` and `personal`. Ope
   - live usage;
   - diagnostics.
 
-  It also runs 127 unit tests and 17 launcher scenarios (16 on macOS) on macOS and Linux.
+  It also runs 174 unit tests and 17 launcher scenarios (16 on macOS) on macOS and Linux.
 - **Linux** is covered by CI, but not yet tried on a Linux desktop. Reports are welcome.
 - **Not affiliated with Anthropic.** Use your accounts within [Anthropic's terms](https://www.anthropic.com/legal).
 - **Twinseat adds no capacity.** Each account keeps its own plan and limits, every conversation runs on exactly one account, and usage is never pooled or transferred between accounts.
