@@ -1,6 +1,7 @@
 {
   "name": "twinseat",
   "displayName": "Twinseat",
+  "icon": "resources/icon.png",
   "description": "Two Claude Code accounts side by side in VS Code: one account per window, the account follows the project, both accounts' usage in one panel. macOS and Linux.",
   "version": "0.3.0",
   "preview": true,

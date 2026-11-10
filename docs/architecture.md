@@ -1,13 +1,15 @@
-# Architecture notes
+# Twinseat — architecture notes
 
-These are the facts the design rests on. Each one was checked against Claude Code 2.1.289 and the Claude Code VS Code extension 2.1.291 (October 2026). Apart from `CLAUDE_CONFIG_DIR` itself, none of this is documented: re-check before relying on it with a newer version.
+These are the facts the design rests on. They were first established against Claude Code 2.1.289 and the Claude Code VS Code extension 2.1.291 (October 2026). Apart from `CLAUDE_CONFIG_DIR` itself, none of this is documented.
+
+The ones Twinseat's code depends on are re-checked every night against the latest release by [`scripts/compat-check.sh`](../scripts/compat-check.sh) (last manual run: Claude Code 2.1.322, November 10, 2026).
 
 ## Claude Code facts
 
 | Fact | Consequence for the design |
 |---|---|
 | `CLAUDE_CONFIG_DIR` moves everything, `.claude.json` included, into that directory. | An account is simply a directory. Sharing a setup means symlinking the shared parts. |
-| The keychain entry is named `Claude Code-credentials-<first 8 hex of sha256(config dir path)>`. The hash covers the *literal* path. | The account path must be exactly the same string everywhere: `$HOME/.claude/comptes/A`, with no trailing slash and no `~`. A different spelling means a different login. |
+| On macOS, the keychain entry was named `Claude Code-credentials-<first 8 hex of sha256(config dir path)>` (observed with 2.1.289; Twinseat's code does not depend on the name). The hash covers the *literal* path. On Linux, the credentials are a file inside the configuration directory. | The account path must be exactly the same string everywhere: `$HOME/.claude/comptes/A`, with no trailing slash and no `~`. A different spelling means a different login. |
 | `claudeCode.claudeProcessWrapper` and `claudeCode.environmentVariables` are machine-scoped (user settings only) and re-read at **every** Claude launch. | Turning the wrapper on or off never kills a running conversation. The setting has to go in user settings, not workspace settings. |
 | The wrapper is called as `wrapper <claude binary> <args…>`. A resumed conversation gets `--resume=<id>`; a new conversation gets no ID. | The launcher adds `--session-id=<uuid>` itself, so it knows the ID of every new conversation before Claude starts. |
 | A `get_usage` control request on a `stream-json` session answers in about 1.5 s, without sending any message. | Usage can be polled every 5 minutes at no cost to the quota. |
@@ -30,10 +32,12 @@ These are the facts the design rests on. Each one was checked against Claude Cod
 
 ## Why a shell script for the launcher
 
-The launcher runs before every Claude process, including short-lived probes. A POSIX `sh` script starts in a few milliseconds, has no runtime to install, and has one rule that is easy to audit: when in doubt, `exec` Claude unchanged. Its 14 scenarios (21 checks) in `tests/lanceur.test.sh` run against a fake `claude`, and they cover:
+The launcher runs before every Claude process, including short-lived probes. A POSIX `sh` script starts in a few milliseconds, has no runtime to install, and has one rule that is easy to audit: when in doubt, `exec` Claude unchanged. Its 17 scenarios in `tests/lanceur.test.sh` run against a fake `claude`, under macOS `sh` and Ubuntu's `dash`, and they cover:
 - resume;
 - forks;
 - concurrent launchers (another launcher is visible but must not count as an open conversation);
 - the double-open guard;
 - spoofed IDs (a path in place of an ID must not reach a planted file);
+- a launcher started by its shebang: Linux names that process `lanceur`, macOS `/bin/sh`, and both must be told apart from a running conversation;
+- a missing or silent `uuidgen` (the Linux kernel provides the ID instead);
 - running with no accounts at all.

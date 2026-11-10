@@ -1,179 +1,184 @@
-# Comptes Claude
+# Twinseat
 
-A VS Code extension that runs **two Claude Code accounts side by side on one Mac**. Each window uses one account, one panel shows both accounts' usage, and a conversation can be moved to the other account with its full history.
+**Your work and personal Claude Code accounts, side by side in VS Code.**
 
-[![tests](https://github.com/alexdmrx/claude-comptes/actions/workflows/test.yml/badge.svg)](https://github.com/alexdmrx/claude-comptes/actions/workflows/test.yml)
-![macOS only](https://img.shields.io/badge/platform-macOS-lightgrey)
+Each VS Code window runs on its own Claude Code account, and the account follows the project: pin it once in `.vscode/settings.json` and every window you open on that project uses it. One panel shows both accounts' usage. Works on macOS and Linux.
+
+[![tests](https://github.com/alexdmrx/twinseat/actions/workflows/test.yml/badge.svg)](https://github.com/alexdmrx/twinseat/actions/workflows/test.yml)
+[![compatibility with the latest Claude Code](https://github.com/alexdmrx/twinseat/actions/workflows/compat.yml/badge.svg)](https://github.com/alexdmrx/twinseat/actions/workflows/compat.yml)
+![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 [![MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-## Status
-
-**This is a personal tool, published as a reference.** I built it in October 2026 for my own setup and used it daily until I went back to a single account.
-
-- **Last tested with** Claude Code 2.1.289 and the Claude Code VS Code extension 2.1.291.
-- **May break with newer versions**, because it relies on undocumented Claude Code behaviour (see [Known limitations](#known-limitations)).
-- **Not actively maintained.** I read issues, but I don't promise fixes.
-- **macOS only.**
-- **French** is used for the UI and the code identifiers; the docs are in English.
-- **Use it with accounts you own, within Anthropic's terms.** Every conversation runs on exactly one account and counts against that account's limits. Nothing is pooled or shared between accounts.
-- **Not affiliated with Anthropic.**
+**Install:**
+- **VS Code:** [Marketplace](https://marketplace.visualstudio.com/items?itemName=alexdmrx.twinseat).
+- **Cursor, Windsurf, VSCodium:** [Open VSX](https://open-vsx.org/extension/alexdmrx/twinseat). Not yet tried in those editors.
+- **Other:** the `.vsix` from [Releases](https://github.com/alexdmrx/twinseat/releases).
 
 <p align="center">
-  <img src="./docs/panel.png" width="320" alt="Side panel: account A (this window, Max plan) and account B (Pro plan), each with a 5-hour and a weekly usage bar, then open conversations, recent conversations with “Reprendre sur A / B” buttons, and a handoff note.">
-  <br><sub>The side panel, rendered from the extension's own panel code with fictional sample data.</sub>
+  <img src="./docs/panel.png" width="320" alt="Twinseat panel: the “work” account (this window, Max plan) and the “personal” account (Pro plan), each with its 5-hour and weekly usage, then open and recent conversations tagged work or personal, with “Resume on work / personal” buttons.">
+  <br><sub>The Twinseat panel, rendered from the extension's own panel code with fictional sample data.</sub>
 </p>
 
 ## Why
 
-Claude Code already supports several accounts: each one gets its own configuration directory through `CLAUDE_CONFIG_DIR` (the [official docs](https://code.claude.com/docs/en/authentication) use work and personal accounts as the example). In a terminal, that is just an alias.
+Claude Code signs every VS Code window into the same account. If you keep a work account and a personal one, or one per client, you end up in one of two situations:
+- logging out and back in;
+- or spending one account's usage on the other's work, without noticing.
 
-In VS Code, two things get in the way:
-- **One account for every window.** The Claude Code extension starts every session with the same environment.
-- **Separate setups.** Each configuration directory holds its own settings, history, skills, commands and MCP servers, so two accounts mean two setups that drift apart.
-
-This extension makes the account a property of the **window**. Most of the setup stays shared between the two accounts; the exact split is under [How it works](#how-it-works).
+Twinseat makes the account a property of the window and of the project, so each piece of work stays on the account it belongs to.
 
 ## Features
 
-- **One account per window.** The account is picked when the window opens and remembered per project. You can change it from the status bar (`Claude : A`). The change only affects new conversations.
-- **Conversations stay on their account.** A small registry records the account each conversation started on. After a reload, a crash or a reopen, the conversation opens on that same account.
-- **Move a conversation to the other account.** For the five most recent conversations of the project, “Reprendre sur B” resumes the same conversation, with the same history, under the other account.
-- **Both accounts' usage in one panel.** The panel shows the 5-hour and weekly usage of both accounts. It refreshes every 5 minutes by asking Claude Code itself; no message is sent. A notification appears at 90 % of either limit.
-- **Always know which account you're on.** An A/B badge sits on Claude tabs. The integrated terminal follows the window's account, and the `claude-a` / `claude-b` aliases do the same outside VS Code.
-- **Long-conversation alert.** You are warned once a conversation passes about 160k tokens of context.
+- **The account follows the project.** Pin a project once and every window on it opens on that account, with no menu and no login dance:
+
+  ```jsonc
+  // .vscode/settings.json
+  { "twinseat.account": "work" }
+  ```
+
+  It can be committed in the repo. A project without a pin reopens on the account you last used for it. You only get asked the first time.
+- **Two accounts at the same time.** One window on `work`, another on `personal`, both running.
+  - **Conversations stay on their account.** They reopen on it after a reload, a crash or a restart.
+  - **Moving one is a click.** “Resume on personal” moves a conversation to the other account with its full history.
+- **Accounts with names.** `work` and `personal` (or whatever you choose) appear in the panel, the status bar, the menus and the notifications, instead of “A” and “B”.
+- **Both accounts' usage in one panel.** It shows the 5-hour and weekly limits of each account and when they reset. Claude Code itself fetches the figures; no message is sent.
+- **Safe by design:**
+  - Twinseat never reads, stores or forwards your login tokens; each account signs in through Claude Code's own `claude auth login`.
+  - **Twinseat: Check and Repair Setup** checks 13 things and fixes only what is safe to fix.
+  - **Twinseat: Copy Diagnostics** gives you a report with no email, account name, conversation or token.
+  - Uninstalling removes Twinseat's launcher setting from your editor.
+- **Kept honest by CI.** The whole test suite runs on macOS and Linux. A nightly job also checks every Claude Code behaviour Twinseat relies on against the latest Claude Code release.
+
+## Quick start
+
+1. Install Twinseat. The **Twinseat** panel appears in the activity bar.
+2. Click **Sign in** on each of the two account cards. A terminal runs `claude auth login` for that account only.
+3. Click **Enable** in the panel, or reload the window.
+
+Then use **Rename** on each card to call the accounts `work` and `personal`. Open a project and run **Twinseat: Pin this project to the current account**.
+
+## Status
+
+**Twinseat 0.3.0 is a Preview.**
+- **Two-account flows** (one window per account, resuming and moving conversations) were verified end-to-end with two Claude Max accounts in October 2026 (version 0.2).
+- **Version 0.3.0** was verified end-to-end with one account on Claude Code 2.1.319 and VS Code 1.141:
+  - installed from the `.vsix`;
+  - project pin;
+  - a real Claude Code session started through Twinseat's launcher;
+  - live usage;
+  - diagnostics.
+
+  It also runs 127 unit tests and 17 launcher scenarios on macOS and Linux.
+- **Linux** is covered by CI, but not yet tried on a Linux desktop. Reports are welcome.
+- **Not affiliated with Anthropic.** Use your accounts within [Anthropic's terms](https://www.anthropic.com/legal). Every conversation runs on exactly one account and counts against that account's limits; nothing is pooled or shared between accounts.
+
+## Similar projects
+
+As of November 10, 2026, from each project's own README:
+
+| | Platforms | Accounts | Scope | Login tokens |
+|---|---|---|---|---|
+| **Twinseat** | macOS, Linux | 2, named | per window; follows the project | never read |
+| [Many Hats for Claude Code](https://github.com/ryankkhalil19/many-hats) | macOS | any number | per tab | never read |
+| [Claude Parallel Accounts](https://github.com/DercasDrol/claude-parallel-profiles) | Linux, WSL, Remote SSH | several | per window | a copy per window |
+| [Claude Code Account Switch](https://marketplace.visualstudio.com/items?itemName=NOLANSARL.claude-code-account-switch) | macOS | several | rules per folder | read and refreshed to show usage |
+| Account switchers (several on the Marketplace) | varies | several | one active account at a time | saved and swapped |
+
+- **If you need more than two accounts, or a different account per tab,** [Many Hats](https://github.com/ryankkhalil19/many-hats) is a good fit.
+- **Twinseat is built for the pair:** work and personal, each project on its own account, on macOS or Linux.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  W["VS Code window<br/>(account B)"] -- "CLAUDE_COMPTE_FENETRE=B" --> X["Claude Code<br/>VS Code extension"]
+  W["VS Code window<br/>(project pinned to work = slot A)"] -- "CLAUDE_COMPTE_FENETRE=A" --> X["Claude Code<br/>VS Code extension"]
   X -- "claudeProcessWrapper" --> L["launcher<br/>~/.claude/comptes/bin/lanceur"]
   L -- "reads / writes" --> R[("registry<br/>conversation → account")]
-  L -- "CLAUDE_CONFIG_DIR=~/.claude/comptes/B" --> C["claude"]
-  C --> D["~/.claude/comptes/B<br/>.claude.json + caches"]
+  L -- "CLAUDE_CONFIG_DIR=~/.claude/comptes/A" --> C["claude"]
+  C --> D["~/.claude/comptes/A<br/>.claude.json + caches"]
   D -. "symlinks" .-> S["~/.claude<br/>shared: settings, CLAUDE.md, history,<br/>projects, skills, commands, plugins…"]
 ```
 
-1. **The window sets an environment variable.** On activation, the extension puts `CLAUDE_COMPTE_FENETRE` in the extension host's environment. Every Claude process started from that window inherits it.
-2. **A launcher picks the account.** The Claude Code extension can start Claude through a wrapper (`claudeCode.claudeProcessWrapper`). The wrapper here is a POSIX `sh` script ([`resources/lanceur.sh`](./resources/lanceur.sh)), and it picks the account in this order:
+1. **The window picks its account.** The order is the project's `twinseat.account`, then the account remembered for the project, then a one-time menu. Twinseat puts that account in the extension host's environment, and every Claude process started from the window inherits it.
+2. **A launcher starts Claude on that account.** The Claude Code extension can start Claude through a wrapper (`claudeCode.claudeProcessWrapper`). Twinseat's wrapper is a small POSIX `sh` script, [`resources/lanceur.sh`](./resources/lanceur.sh). It picks:
    1. the account recorded for the conversation being resumed;
-   2. the window's account;
-   3. the last account used for this project;
-   4. account A.
+   2. otherwise the window's account;
+   3. otherwise the last account used for the project;
+   4. otherwise the first account.
 
-   It then runs `claude` with `CLAUDE_CONFIG_DIR` pointing at that account's directory.
-3. **Every new conversation gets its ID from the launcher.** For a new conversation, the launcher adds `--session-id=<uuid>`. The registry can then record the account *before* Claude starts, so a later `--resume` always finds it.
-4. **Most of the setup is shared, the identities stay separate.** `~/.claude/comptes/A` and `B` each mix three kinds of content:
-
-   | Kind | What | Effect |
-   |---|---|---|
-   | **Linked** (symlinks to `~/.claude`) | `settings.json`, `CLAUDE.md`, `history.jsonl`, `projects/`, `skills/`, `commands/`, `agents/`, `hooks/`, `plugins/` and the other working folders | Always shared |
-   | **Copied once** (from `~/.claude.json`, when the account folder is created) | MCP servers, trusted projects, UI flags, migration markers | A server added later must be added to each account |
-   | **Separate** | `.claude.json` (identity and per-account state), caches, and every file not in the list, `keybindings.json` for example | Per account |
-5. **Usage comes from Claude Code itself.** A short-lived `claude -p --input-format stream-json` process receives a `get_usage` control request and nothing else: no prompt, no MCP servers, no hooks. When that fails, the panel falls back to the usage Claude Code caches in each account's `.claude.json`.
+   It then runs `claude` with `CLAUDE_CONFIG_DIR` pointing at that account's folder. For a new conversation it adds `--session-id=<uuid>`, so the registry knows the account before Claude starts.
+3. **One setup, two identities.** Each account folder links to `~/.claude` for settings, `CLAUDE.md`, history, projects, skills, commands and plugins. Each account keeps its own `.claude.json` (identity) and its credentials:
+   - on macOS, Claude Code keeps them in the keychain, one entry per folder;
+   - on Linux, in the account's folder.
+4. **Usage comes from Claude Code itself.** A short-lived `claude -p --input-format stream-json` receives a `get_usage` control request: no prompt, no MCP servers, no hooks.
 
 The Claude Code facts this design depends on, and the pitfalls found along the way, are in [docs/architecture.md](./docs/architecture.md).
-
-## Engineering notes
-
-- **Claude starts, whatever happens.** If the registry, the account folder or anything else is missing, the launcher starts `claude` unchanged. It refuses in exactly one case: a conversation that is already open in another tab, because two processes would write the same history.
-- **Login credentials stay with Claude Code.** Each account logs in with Claude Code's own `claude auth login`, run with that account's `CLAUDE_CONFIG_DIR`. Claude Code keeps the OAuth credentials in the macOS keychain, one entry per configuration directory. The extension never reads, stores or forwards them. It does read each account's email address from `.claude.json`, to show it in the panel.
-- **Copying never overwrites.** When an account folder is created, an allow-list of keys is copied from `~/.claude.json`. That includes MCP server definitions, which may contain API keys, so the copy is written with mode `600`. A deny-list keeps identity keys (`oauthAccount`, `userID`…) and caches out. Existing files are never overwritten: a conflict is logged and left alone.
-- **The webview is locked down.** Scripts run only with a per-load nonce. The webview renders with `textContent` only (never `innerHTML`), accepts a closed list of actions, and checks conversation IDs and note names before any command runs.
-- **Several windows can run at once.** Registry, project and usage files are written to a temp file and then renamed. A lock file ensures that only one window refreshes usage at a time. One-shot markers are created with the `wx` flag.
-- **The core is testable without VS Code.** Paths, installation, registry, usage, formatting and relay notes never import `vscode`. 22 `node:test` unit tests cover:
-  - formatting;
-  - the installer (idempotence, conflicts left intact);
-  - the identity filter;
-  - registry and project keys;
-  - relay notes.
-
-  The launcher has its own suite: 14 scenarios and 21 checks against a fake `claude`.
 
 ## What it changes on your machine
 
 | Where | What | When |
 |---|---|---|
-| `~/.claude/comptes/` | `A/` and `B/` (symlinks plus their own `.claude.json`), `bin/lanceur`, `registre/`, `projets/`, `quotas/`, `alertes-contexte/`, `journal.log` (one line per launch: time, account, mode, conversation ID; never any content) | First activation |
-| `~/.claude/` | Creates any missing shared folder, empty, so that the links resolve | First activation |
-| `~/.zshrc` | Appends the `claude-a` and `claude-b` aliases, once, **without asking** | First activation |
-| VS Code user settings | `claudeCode.claudeProcessWrapper` → the launcher. It never replaces a wrapper that is already set | When you activate it (see [Install](#install)) |
-| macOS keychain | One Claude Code credentials entry per account, created by Claude Code's own login | When you log in |
+| `~/.claude/comptes/` | The two account folders (symlinks plus their own `.claude.json`), `bin/lanceur`, the registry, project memory, usage cache, a launch log (time, account, mode, conversation ID; never any content) | First activation |
+| `~/.claude/` | Creates any missing shared folder, empty, so the links resolve | First activation |
+| Editor user settings | `claudeCode.claudeProcessWrapper` → the launcher. Never replaces another program's wrapper | **Enable** |
+| `~/.zshrc`, `~/.bashrc` or an existing `~/.bash_profile` | The `claude-a` / `claude-b` aliases | Only if you run **Twinseat: Add claude-a / claude-b shell aliases**, after confirming |
 
-Outside `~/.claude/comptes`, nothing is moved or deleted. Inside it, the extension rotates its own log and removes old registry entries and alert markers.
+Outside `~/.claude/comptes`, nothing is moved or deleted.
 
-## Install
+## Settings
 
-**Requirements:**
-- macOS;
-- VS Code 1.94 or later, with the Claude Code extension;
-- two Claude accounts that can use Claude Code;
-- Node.js 22 or later, only to build or test from source.
+| Setting | Scope | What it does |
+|---|---|---|
+| `twinseat.accountLabels` | user | Names for the two accounts, e.g. `{"A": "work", "B": "personal"}` |
+| `twinseat.account` | project | The account this project uses: a name, or `A` / `B` |
 
-**From the release:** download `claude-comptes.vsix` from [Releases](https://github.com/alexdmrx/claude-comptes/releases), then run:
+## Commands
 
-```sh
-code --install-extension claude-comptes.vsix
-```
-
-**From source:**
-
-```sh
-npm ci
-npm test
-npm run package   # builds claude-comptes.vsix
-```
-
-**Then:**
-1. Open the **Comptes Claude** panel in the activity bar.
-2. Click **Se connecter** for account A, then for account B. Each click opens a terminal that runs `claude auth login` for that account.
-3. Click **Activer** in the panel, or reload the window: this sets the wrapper. From then on, each window gets its account.
+| Command | What it does |
+|---|---|
+| Twinseat: Choose this window's account | Switch the window; conversations already open keep their account |
+| Twinseat: Pin this project to the current account | Writes `twinseat.account` to the project's settings |
+| Twinseat: Name an account… | Sets `work`, `personal`… |
+| Twinseat: Sign in to an account | Runs `claude auth login` for that account only |
+| Twinseat: Enable / Disable everything | Sets or removes the launcher setting |
+| Twinseat: Refresh usage | Asks Claude Code for both accounts' usage now |
+| Twinseat: Check and Repair Setup | 13 checks; repairs only what is safe |
+| Twinseat: Copy Diagnostics | A report for bug reports, with no personal data |
+| Twinseat: Add claude-a / claude-b shell aliases | Asks first, names the file |
 
 ## Uninstall
 
-1. Run **Comptes Claude : tout désactiver** from the command palette. This removes the wrapper setting; if you skip it, the setting stays after uninstalling.
-2. Uninstall the extension.
-3. Optionally, remove the two aliases from `~/.zshrc` and delete `~/.claude/comptes`. Each account's `.claude.json` goes with it, including any MCP server added since. The keychain entries stay; delete them in Keychain Access if you want.
+Uninstalling Twinseat removes its launcher setting from your editor's user settings. This works for VS Code, Insiders, VSCodium, Cursor and Windsurf, profiles included; comments and formatting are kept. To also remove its data, delete `~/.claude/comptes`. That signs the second account out:
+- on macOS, its keychain entry stays until you delete it in Keychain Access;
+- on Linux, its credentials are inside that folder and go with it.
 
 > [!WARNING]
-> Never delete `~/.claude/comptes` while `claudeCode.claudeProcessWrapper` still points to it: Claude Code would no longer start in VS Code.
+> Delete `~/.claude/comptes` only after uninstalling, or after **Twinseat: Disable everything**. While the launcher setting points to it, Claude Code cannot start.
 
 ## Known limitations
 
-- **macOS only.** It relies on the keychain, `uuidgen` and `pgrep`, and nothing checks the platform.
-- **Exactly two accounts**, A and B.
-- **Undocumented Claude Code behaviour it relies on:**
-  - the wrapper calling convention, `wrapper <binary> <args…>`;
-  - the `--resume=<id>` and `--session-id=<id>` argument forms;
-  - the `get_usage` control request, and the `cachedUsageUtilization` field of `.claude.json`;
-  - the location of the `claude` binary inside the Claude Code extension;
-  - the history layout, `projects/<project key>/<id>.jsonl`;
-  - the `claudeVSCodePanel` webview type and the Claude view IDs, used for the badges;
-  - the `claude-vscode.editor.open` command.
-- **An interrupted answer is not resumed after a reload.** With a wrapper set, the Claude Code extension no longer resumes an answer cut short by a window reload (observed with 2.1.291).
+- **Exactly two accounts.** That is the design; see [Similar projects](#similar-projects) for more.
+- **Windows is not supported.** Twinseat stays inactive there and says so.
+- **It relies on undocumented Claude Code behaviour:** the wrapper calling convention, the `--resume` / `--session-id` forms, the `get_usage` request, view and command IDs of the Claude Code extension. The [nightly check](./.github/workflows/compat.yml) exists to catch a change the day it ships.
+- **An interrupted answer is not resumed after a reload.** With a wrapper set, the Claude Code extension no longer resumes an answer cut short by a window reload.
 - **`/clear` conversations follow the window.** A conversation started by `/clear` is not in the registry, so it follows the window's account when reopened.
-- **Activation on startup (`*`).** This is needed so the account is set before restored Claude tabs start.
-- **Some buttons rely on personal commands that are not in this repository:**
-  - the “Copier /relais” button in the usage and long-conversation alerts;
-  - the “Relais” section of the panel, which lists handoff notes written by `/relais`;
-  - its “Reprendre sur A / B” buttons, which type `/reprendre`.
+- **It activates on startup (`*`),** so that the account is set before restored Claude tabs start.
+- **Handoff notes need personal commands.** The “Handoff notes” section and the “Copy /relais” buttons work with personal `/relais` and `/reprendre` commands that are not part of this repository. Without them, the section stays empty.
+- **Some internal names are French:** command IDs (`claudeComptes.*`), `~/.claude/comptes`, code identifiers. They come from the project's first name, “Comptes Claude”, and were kept so existing setups keep working.
 
-  Without these commands, the section stays empty and the buttons only copy text.
-
-## Tests
+## Development
 
 ```sh
-npm test
+npm ci
+npm test                    # TypeScript build, 127 unit tests, 17 launcher scenarios
+npm run package             # twinseat.vsix
+sh scripts/compat-check.sh <claude-code-extension-dir> <claude-binary>
 ```
-
-This compiles the TypeScript, runs the `node:test` unit tests (`src/test/`) and runs the launcher scenarios (`tests/lanceur.test.sh`). CI runs the same command on macOS.
 
 ## How it was built
 
-I specified, tested and reviewed it. Most of the code was written with Claude Code, and each part went through an adversarial review pass before it was installed.
+I specified, tested and reviewed it. Most of the code was written with Claude Code, and each part went through an adversarial review pass.
 
 ## License
 
-[MIT](./LICENSE)
-
-Not affiliated with Anthropic. “Claude” and “Claude Code” are trademarks of Anthropic.
+[MIT](./LICENSE). Not affiliated with Anthropic. “Claude” and “Claude Code” are trademarks of Anthropic.
