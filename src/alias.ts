@@ -1,8 +1,8 @@
 // Commande « Twinseat: Add claude-a / claude-b shell aliases ».
 // Rien n'est écrit sans accord : le fichier visé est nommé dans une confirmation
 // qui montre aussi les deux lignes. Zsh et bash seulement (le fichier dépend du shell et du
-// système : voir fichierShell) ; pour un autre shell, les deux lignes sont copiées et rien
-// n'est écrit.
+// système : voir fichierShell) ; pour un autre shell, ou pour bash sous macOS quand
+// ~/.bash_profile n'existe pas, les deux lignes sont copiées et rien n'est écrit.
 import * as vscode from "vscode";
 import { ajouterAlias, LIGNES_ALIAS, planAlias } from "./installation";
 import { journal } from "./journal";
@@ -14,7 +14,8 @@ export async function proposerAlias(): Promise<void> {
 
   if (plan.action === "copier") {
     await vscode.env.clipboard.writeText(detail);
-    void vscode.window.showInformationMessage(t("alias.shellInconnu"), { modal: true, detail });
+    const message = plan.fichierConseille ? t("alias.bashSansProfil", { fichier: plan.fichierConseille }) : t("alias.shellInconnu");
+    void vscode.window.showInformationMessage(message, { modal: true, detail });
     return;
   }
 

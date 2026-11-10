@@ -55,6 +55,32 @@ test("commandes : chaque commande déclarée est enregistrée dans extension.ts,
   for (const c of ["claudeComptes.nommerCompte", "claudeComptes.epinglerProjet"]) assert.ok(declarees.has(c), c);
 });
 
+test("commandes de vérification et de diagnostic : déclarées avec un titre traduit, et le panneau a son bouton", () => {
+  const titres = new Map((pkg.contributes.commands as { command: string; title: string }[]).map((c) => [c.command, c.title]));
+  assert.equal(titres.get("claudeComptes.verifier"), "%command.verifier.title%");
+  assert.equal(titres.get("claudeComptes.diagnostic"), "%command.diagnostic.title%");
+  assert.equal(nls["command.verifier.title"], "Twinseat: Check and Repair Setup");
+  assert.equal(nls["command.diagnostic.title"], "Twinseat: Copy Diagnostics");
+  // elles restent dans la palette de commandes (pas masquées par un « when: false »)
+  const masquees = (pkg.contributes.menus.commandPalette as { command: string; when: string }[]).filter((m) => m.when === "false").map((m) => m.command);
+  assert.ok(!masquees.includes("claudeComptes.verifier") && !masquees.includes("claudeComptes.diagnostic"));
+  // le bouton du panneau : action de la liste fermée, relayée vers la commande
+  assert.match(lire("src/panneau.ts"), /case "verifier":\s+void vscode\.commands\.executeCommand\("claudeComptes\.verifier"\)/);
+  assert.match(lire("src/panneau.ts"), /bouton\(tr\('web\.verifier'\), \{ action: 'verifier' \}, true\)/);
+});
+
+test("désinstallation : vscode:uninstall lance out/desinstallation.js, jsonc-parser est une dépendance livrée dans le .vsix", () => {
+  assert.equal(pkg.scripts["vscode:uninstall"], "node ./out/desinstallation.js");
+  assert.match(pkg.dependencies["jsonc-parser"], /^\^?3\.\d+\.\d+$/);
+  assert.ok(!("jsonc-parser" in (pkg.devDependencies ?? {})));
+  assert.ok(!/from "vscode"|require\("vscode"\)/.test(lire("src/desinstallation.ts")), "le crochet de désinstallation tourne sans l'API vscode");
+  // .vscodeignore ne doit pas exclure tout node_modules : le crochet a besoin de jsonc-parser
+  const ignores = lire(".vscodeignore").split("\n").map((l) => l.trim());
+  assert.ok(!ignores.includes("node_modules/**") && !ignores.includes("node_modules"), "node_modules exclu du .vsix");
+  assert.ok(!ignores.some((l) => /^node_modules\/jsonc-parser\/(\*\*|lib\/\*\*|lib\/umd(\/.*)?|package\.json)$/.test(l)), "jsonc-parser (umd) exclu du .vsix");
+  assert.ok(!ignores.includes("out/**") && !ignores.includes("out/desinstallation.js"));
+});
+
 test("les emplacements restent A et B : identifiants internes inchangés", () => {
   const ids = (pkg.contributes.commands as { command: string }[]).map((c) => c.command);
   for (const id of ["claudeComptes.bulleA", "claudeComptes.bulleB", "claudeComptes.choisirCompte"]) assert.ok(ids.includes(id), id);

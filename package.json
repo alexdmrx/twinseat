@@ -44,7 +44,8 @@
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
     "test": "npm run compile && node --test \"out/test/*.test.js\" && sh tests/lanceur.test.sh",
-    "package": "npm run compile && npx --yes @vscode/vsce@3 package --allow-star-activation -o twinseat.vsix"
+    "package": "npm run compile && npx --yes @vscode/vsce@3 package --allow-star-activation -o twinseat.vsix",
+    "vscode:uninstall": "node ./out/desinstallation.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -132,6 +133,14 @@
       {
         "command": "claudeComptes.ajouterAlias",
         "title": "%command.ajouterAlias.title%"
+      },
+      {
+        "command": "claudeComptes.verifier",
+        "title": "%command.verifier.title%"
+      },
+      {
+        "command": "claudeComptes.diagnostic",
+        "title": "%command.diagnostic.title%"
       },
       {
         "command": "claudeComptes.reprendre",
@@ -229,5 +238,8 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1"
   }
 }

@@ -68,8 +68,11 @@ function lier(cible: string, lien: string, rapport: Rapport): void {
   rapport.conflits.push(lien);
 }
 
-/** Installe (ou complète) la base commune. `lanceurSource` = script à copier. */
-export function installer(lanceurSource: string, home = os.homedir()): Rapport {
+/**
+ * Installe (ou complète) la base commune. `lanceurSource` = script à copier.
+ * `options.lanceur: false` : ne touche pas au lanceur installé (la réparation le traite à part).
+ */
+export function installer(lanceurSource: string, home = os.homedir(), options: { lanceur?: boolean } = {}): Rapport {
   const rapport: Rapport = { crees: [], conflits: [] };
   const b = base(home);
   for (const d of [racineComptes(home), sousDossier.registre(home), sousDossier.projets(home), sousDossier.quotas(home), sousDossier.bin(home)]) {
@@ -88,11 +91,12 @@ export function installer(lanceurSource: string, home = os.homedir()): Rapport {
       rapport.crees.push(fiche);
     }
   }
-  copierLanceur(lanceurSource, home, rapport);
+  if (options.lanceur !== false) copierLanceur(lanceurSource, home, rapport);
   return rapport;
 }
 
-function copierLanceur(source: string, home: string, rapport: Rapport): void {
+/** Copie le lanceur à jour dans ~/.claude/comptes/bin (écriture atomique) et le rend exécutable. */
+export function copierLanceur(source: string, home: string, rapport: Rapport): void {
   const dest = cheminLanceur(home);
   const neuf = fs.readFileSync(source);
   const actuel = existe(dest) ? fs.readFileSync(dest) : undefined;
@@ -149,16 +153,30 @@ export function detecterShell(valeurShell: string | undefined): Shell | undefine
  * Fichier de démarrage où le bloc d'alias s'écrit.
  * - zsh : ~/.zshrc, partout ;
  * - bash sous Linux : ~/.bashrc ;
- * - bash sous macOS (les terminaux y sont des shells de connexion, qui lisent ~/.bash_profile) :
- *   ~/.bash_profile s'il existe, sinon ~/.bashrc s'il existe, sinon ~/.bash_profile (à créer).
+ * - bash sous macOS (les terminaux y sont des shells de connexion, qui lisent ~/.bash_profile, sinon
+ *   ~/.bash_login, sinon ~/.profile) : ~/.bash_profile SEULEMENT s'il existe déjà. Le créer pourrait
+ *   masquer un ~/.profile existant, et ~/.bashrc n'est pas lu par un shell de connexion : sans
+ *   ~/.bash_profile, rien n'est écrit (`undefined`) et l'appelant montre les lignes (voir `fichierConseille`).
  * Ne crée ni ne modifie rien. `plateforme` = `process.platform` (injectée dans les essais).
  */
-export function fichierShell(shell: Shell, home = os.homedir(), plateforme: string = process.platform): string {
+export function fichierShell(shell: "zsh", home?: string, plateforme?: string): string;
+export function fichierShell(shell: Shell, home?: string, plateforme?: string): string | undefined;
+export function fichierShell(shell: Shell, home = os.homedir(), plateforme: string = process.platform): string | undefined {
   if (shell === "zsh") return path.join(home, ".zshrc");
-  const rc = path.join(home, ".bashrc");
-  if (plateforme !== "darwin") return rc;
+  if (plateforme !== "darwin") return path.join(home, ".bashrc");
   const profil = path.join(home, ".bash_profile");
-  return !fs.existsSync(profil) && fs.existsSync(rc) ? rc : profil;
+  return fs.existsSync(profil) ? profil : undefined;
+}
+
+/**
+ * Sous macOS, le fichier où coller les deux lignes quand `fichierShell` ne donne rien : celui que
+ * bash lit à l'ouverture d'un terminal (le premier qui existe parmi ~/.bash_profile, ~/.bash_login,
+ * ~/.profile), sinon ~/.bash_profile (à créer à la main). Écrit avec « ~ », pour l'affichage.
+ * Ne crée rien.
+ */
+export function fichierConseille(home = os.homedir()): string {
+  const lu = [".bash_profile", ".bash_login", ".profile"].find((nom) => fs.existsSync(path.join(home, nom)));
+  return `~/${lu ?? ".bash_profile"}`;
 }
 
 /** Le bloc d'alias est-il déjà dans ce fichier ? (absent = non) */
@@ -179,14 +197,19 @@ export function ajouterAlias(fichier: string): boolean {
   return true;
 }
 
+/**
+ * `copier` : rien n'est écrit, l'appelant copie les lignes. `fichierConseille` (bash sous macOS sans
+ * ~/.bash_profile) dit dans quel fichier les coller ; absent, le shell est tout simplement inconnu.
+ */
 export type PlanAlias =
   | { action: "ecrire"; shell: Shell; fichier: string; dejaFait: boolean }
-  | { action: "copier"; lignes: readonly string[] };
+  | { action: "copier"; lignes: readonly string[]; fichierConseille?: string };
 
 /** Que faire pour ce shell ? N'écrit jamais : l'appelant demande confirmation, puis appelle ajouterAlias. */
 export function planAlias(valeurShell: string | undefined, home = os.homedir(), plateforme: string = process.platform): PlanAlias {
   const shell = detecterShell(valeurShell);
   if (!shell) return { action: "copier", lignes: LIGNES_ALIAS };
   const fichier = fichierShell(shell, home, plateforme);
+  if (!fichier) return { action: "copier", lignes: LIGNES_ALIAS, fichierConseille: fichierConseille(home) };
   return { action: "ecrire", shell, fichier, dejaFait: aliasPresents(fichier) };
 }

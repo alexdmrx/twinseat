@@ -135,6 +135,9 @@ export class Panneau implements vscode.WebviewViewProvider {
       case "actualiser":
         void vscode.commands.executeCommand("claudeComptes.actualiser");
         return;
+      case "verifier":
+        void vscode.commands.executeCommand("claudeComptes.verifier");
+        return;
       case "activer":
         void vscode.commands.executeCommand("claudeComptes.activer");
         return;
@@ -396,6 +399,9 @@ function rendre(e) {
   racine.appendChild(el('h2', '', tr('web.titreRelais')));
   if (!e.relais.length) racine.appendChild(el('div', 'vide', tr('web.aucuneNote')));
   for (const n of e.relais) racine.appendChild(note(n));
+  const bas = el('div', 'actions');
+  bas.appendChild(bouton(tr('web.verifier'), { action: 'verifier' }, true));
+  racine.appendChild(bas);
 }
 window.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'etat') rendre(ev.data.etat); });
 vscode.postMessage({ action: 'pret' });

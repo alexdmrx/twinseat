@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
-import * as path from "node:path";
 import * as vscode from "vscode";
 import { proposerAlias } from "./alias";
 import { cheminLanceur, Compte, COMPTES, autreCompte, dossierCompte, estCompte, estNumeroConversation, sousDossier } from "./chemins";
 import { ResolutionCompte, texteOrigine } from "./compteProjet";
+import { ID_EXTENSION_CLAUDE, trouverBinaireClaude } from "./diagnostic";
 import { libelle, messageErreur, titreCompte, validerEtiquette } from "./etiquettes";
 import { libelleQuota, phraseAlerte } from "./format";
 import { infosCompte, installer } from "./installation";
@@ -13,6 +13,7 @@ import { demarrerOnglets } from "./onglets";
 import { Panneau } from "./panneau";
 import { pageNonSupportee, plateformeSupportee } from "./plateforme";
 import { auSeuil, demanderQuotas, derniersQuotas, enregistrerQuotas, prendreVerrou, rendreVerrou } from "./quotas";
+import { copierDiagnostic, verifierEtReparer } from "./verification";
 import { conversationsVivantes, ecrireCompte, nettoyerRegistre, titreConversation, trouverHistorique } from "./registre";
 import { estNomNote, jetonsContexte, jetonsTexte, lireFin, marquerAlerteContexte, nettoyerAlertesContexte, SEUIL_CONTEXTE } from "./relais";
 import {
@@ -27,12 +28,7 @@ import {
 const CINQ_MIN = 5 * 60_000;
 
 function binaireClaude(): string | undefined {
-  const ext = vscode.extensions.getExtension("anthropic.claude-code");
-  const candidats = [
-    ext ? path.join(ext.extensionPath, "resources", "native-binary", "claude") : undefined,
-    path.join(os.homedir(), ".local", "bin", "claude"),
-  ];
-  return candidats.find((c): c is string => Boolean(c) && fs.existsSync(c as string));
+  return trouverBinaireClaude(vscode.extensions.getExtension(ID_EXTENSION_CLAUDE)?.extensionPath, os.homedir());
 }
 
 const entreGuillemets = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
@@ -482,6 +478,8 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage(t("relais.reprise", { compte: libelle(compte, etiquettesActuelles()), texte }));
   });
   cmd("ajouterAlias", proposerAlias);
+  cmd("verifier", () => verifierEtReparer(context));
+  cmd("diagnostic", () => copierDiagnostic(context));
   const focus = () => vscode.commands.executeCommand("claudeComptes.panneau.focus");
   cmd("bulleA", focus);
   cmd("bulleB", focus);

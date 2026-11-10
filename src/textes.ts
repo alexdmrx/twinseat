@@ -107,7 +107,79 @@ export const en = {
   "alias.ajoutes": "Added the claude-a and claude-b aliases to {fichier}. Open a new terminal to use them.",
   "alias.dejaLa": "The claude-a and claude-b aliases are already in {fichier}. Nothing was changed.",
   "alias.shellInconnu": "Twinseat can only edit the startup file of zsh or bash. Your shell is neither, so nothing was written. The two alias lines are copied to your clipboard: paste them into your shell's startup file.",
+  "alias.bashSansProfil": "Nothing was written: Twinseat adds the aliases to ~/.bash_profile only when that file already exists (creating it could stop bash from reading ~/.profile). The two alias lines are copied to your clipboard: paste them into {fichier}.",
   "alias.echec": "Couldn't write to {fichier}.",
+
+  // --- Vérifier et réparer ; diagnostic ----------------------------------------------
+  "verifier.titre": "Twinseat setup check",
+  "verifier.bilan": "{ok} ok, {warn} to look at, {fail} broken.",
+  "verifier.toutBon": "Everything is in place: all {n} checks passed.",
+  "verifier.reparables": "Twinseat setup check: {bilan} {n} can be repaired automatically.",
+  "verifier.aLire": "Twinseat setup check: {bilan} Nothing here can be repaired automatically: see the Twinseat output for details.",
+  "verifier.reparer": "Repair",
+  "verifier.repare": "Repair done. {bilan}",
+  "verifier.repareToutBon": "Repair done: everything is in place now.",
+  "verifier.reste": "What is still listed needs you: see the Twinseat output.",
+  "verifier.echecs": "Some repairs couldn't be applied: see the Twinseat output.",
+  "reparation.lanceur": "launcher copied again",
+  "reparation.installation": "missing folders and links created",
+  "reparation.droits": "account {compte}: .claude.json set to mode 600",
+  "diagnostic.copie": "Diagnostics copied to the clipboard. They contain no email address, account name or conversation: paste them into your issue.",
+  "diag.reparable": "can be repaired",
+  "diag.erreur": "This check couldn't run ({code}).",
+  "diag.nom.plateforme": "Platform",
+  "diag.nom.claude": "Claude Code program",
+  "diag.nom.lanceur": "Launcher",
+  "diag.nom.reglage": "Launcher setting",
+  "diag.nom.dossier": "Account {compte}: folder",
+  "diag.nom.fiche": "Account {compte}: .claude.json",
+  "diag.nom.connecte": "Account {compte}: signed in",
+  "diag.nom.liens": "Account {compte}: shared links",
+  "diag.nom.registre": "Registry folder",
+  "diag.plateforme.ok": "{systeme} ({arch}) is supported.",
+  "diag.plateforme.non": "{systeme} isn't supported: Twinseat supports macOS and Linux only.",
+  "diag.claude.trouve": "Found.",
+  "diag.claude.absent": "Not found: Twinseat can't read usage or start a sign-in. Install the Claude Code extension.",
+  "diag.lanceur.ok": "Installed, executable, identical to the one bundled with Twinseat.",
+  "diag.lanceur.absent": "Not installed ({chemin}).",
+  "diag.lanceur.droits": "Installed but not executable ({chemin}).",
+  "diag.lanceur.different": "Differs from the one bundled with Twinseat (older, or edited).",
+  "diag.lanceur.autre": "Something other than a regular file is at {chemin}: left untouched.",
+  "diag.lanceur.source": "The launcher bundled with Twinseat can't be read: reinstall Twinseat.",
+  "diag.reglage.notre": "Set to Twinseat's launcher.",
+  "diag.reglage.aucun": "Not set: Twinseat is off. Sign in to both accounts, then run “Twinseat: Enable”.",
+  "diag.reglage.autre": "Set to another program's launcher: Twinseat leaves it alone, and per-window accounts are paused.",
+  "diag.dossier.ok": "Present ({chemin}).",
+  "diag.dossier.absent": "Missing ({chemin}).",
+  "diag.dossier.autre": "Something other than a folder is at {chemin}: left untouched.",
+  "diag.fiche.ok": "Present, mode 600.",
+  "diag.fiche.absente": "Missing: Claude creates it when the account signs in.",
+  "diag.fiche.droits": "Present, but mode {mode} instead of 600.",
+  "diag.fiche.autre": "Not a regular file: left untouched.",
+  "diag.connecte.oui": "Yes.",
+  "diag.connecte.non": "No: use “Sign in” in the Twinseat panel.",
+  "diag.liens.ok": "All {n} shared links are in place.",
+  "diag.liens.dossier": "Skipped: the account folder can't be used (see above).",
+  "diag.liens.manquants": "{n} missing, can be created: {liste}.",
+  "diag.liens.cibles": "{n} shared folder(s) missing in ~/.claude, can be created: {liste}.",
+  "diag.liens.conflits": "{n} in the way, left untouched (a real file or folder, or a link to somewhere else): {liste}.",
+  "diag.registre.ok": "Writable ({chemin}).",
+  "diag.registre.absent": "Missing ({chemin}).",
+  "diag.registre.autre": "Something other than a folder is at {chemin}: left untouched.",
+  "diag.registre.ecriture": "Not writable ({chemin}).",
+  "rapport.titre": "Twinseat diagnostics",
+  "rapport.ligne.twinseat": "Twinseat: {valeur}",
+  "rapport.ligne.vscode": "VS Code: {valeur}",
+  "rapport.ligne.claudeCode": "Claude Code extension: {valeur}",
+  "rapport.ligne.systeme": "System: {valeur}",
+  "rapport.ligne.reglage": "Launcher setting: {valeur}",
+  "rapport.ligne.bilan": "Result: {ok} ok, {warn} warning(s), {fail} failure(s)",
+  "rapport.absente": "not installed",
+  "rapport.reglage.notre": "Twinseat's launcher",
+  "rapport.reglage.aucun": "not set",
+  "rapport.reglage.autre": "another program's launcher",
+  "rapport.verifications": "Checks",
+  "rapport.pied": "No email address, account name, conversation or token is included in this report.",
 
   // --- Panneau : bannières et barres (construits côté extension) ------------------
   "barre.cinqHeures": "5-hour",
@@ -138,6 +210,7 @@ export const en = {
   "web.aucuneNote": "No handoff notes for this project. Type /relais in a conversation to write one.",
   "web.barreAria": "{nom}: {texte}",
   "web.renommer": "Rename",
+  "web.verifier": "Check setup",
 };
 
 export type Cle = keyof typeof en;
@@ -234,7 +307,78 @@ export const fr: Record<Cle, string> = {
   "alias.ajoutes": "Alias claude-a et claude-b ajoutés à {fichier}. Ouvrez un nouveau terminal pour les utiliser.",
   "alias.dejaLa": "Les alias claude-a et claude-b sont déjà dans {fichier}. Rien n'a été changé.",
   "alias.shellInconnu": "Twinseat ne sait modifier que le fichier de démarrage de zsh ou de bash. Votre shell n'est ni l'un ni l'autre : rien n'a été écrit. Les deux lignes d'alias sont copiées dans le presse-papiers : collez-les dans le fichier de démarrage de votre shell.",
+  "alias.bashSansProfil": "Rien n'a été écrit : Twinseat n'ajoute les alias à ~/.bash_profile que si ce fichier existe déjà (le créer pourrait empêcher bash de lire ~/.profile). Les deux lignes d'alias sont copiées dans le presse-papiers : collez-les dans {fichier}.",
   "alias.echec": "Impossible d'écrire dans {fichier}.",
+
+  "verifier.titre": "Vérification de l'installation Twinseat",
+  "verifier.bilan": "{ok} en ordre, {warn} à regarder, {fail} en panne.",
+  "verifier.toutBon": "Tout est en place : les {n} vérifications sont bonnes.",
+  "verifier.reparables": "Vérification de l'installation Twinseat : {bilan} {n} se répare automatiquement.",
+  "verifier.aLire": "Vérification de l'installation Twinseat : {bilan} Rien ne peut se réparer automatiquement ici : le détail est dans la sortie « Twinseat ».",
+  "verifier.reparer": "Réparer",
+  "verifier.repare": "Réparation faite. {bilan}",
+  "verifier.repareToutBon": "Réparation faite : tout est en place maintenant.",
+  "verifier.reste": "Ce qui reste listé demande votre intervention : voir la sortie « Twinseat ».",
+  "verifier.echecs": "Certaines réparations n'ont pas pu être faites : voir la sortie « Twinseat ».",
+  "reparation.lanceur": "lanceur copié de nouveau",
+  "reparation.installation": "dossiers et liens manquants créés",
+  "reparation.droits": "compte {compte} : .claude.json remis en mode 600",
+  "diagnostic.copie": "Diagnostic copié dans le presse-papiers. Il ne contient ni adresse e-mail, ni nom de compte, ni conversation : collez-le dans votre rapport.",
+  "diag.reparable": "réparable",
+  "diag.erreur": "Cette vérification n'a pas pu s'exécuter ({code}).",
+  "diag.nom.plateforme": "Plateforme",
+  "diag.nom.claude": "Programme Claude Code",
+  "diag.nom.lanceur": "Lanceur",
+  "diag.nom.reglage": "Réglage du lanceur",
+  "diag.nom.dossier": "Compte {compte} : dossier",
+  "diag.nom.fiche": "Compte {compte} : .claude.json",
+  "diag.nom.connecte": "Compte {compte} : connecté",
+  "diag.nom.liens": "Compte {compte} : liens partagés",
+  "diag.nom.registre": "Dossier du registre",
+  "diag.plateforme.ok": "{systeme} ({arch}) est pris en charge.",
+  "diag.plateforme.non": "{systeme} n'est pas pris en charge : Twinseat ne fonctionne que sur macOS et Linux.",
+  "diag.claude.trouve": "Trouvé.",
+  "diag.claude.absent": "Introuvable : Twinseat ne peut ni relever les quotas ni lancer une connexion. Installez l'extension Claude Code.",
+  "diag.lanceur.ok": "Installé, exécutable, identique à celui livré avec Twinseat.",
+  "diag.lanceur.absent": "Pas installé ({chemin}).",
+  "diag.lanceur.droits": "Installé mais pas exécutable ({chemin}).",
+  "diag.lanceur.different": "Différent de celui livré avec Twinseat (plus ancien, ou modifié).",
+  "diag.lanceur.autre": "Autre chose qu'un fichier ordinaire se trouve à {chemin} : laissé tel quel.",
+  "diag.lanceur.source": "Le lanceur livré avec Twinseat est illisible : réinstallez Twinseat.",
+  "diag.reglage.notre": "Réglé sur le lanceur de Twinseat.",
+  "diag.reglage.aucun": "Pas réglé : Twinseat est désactivé. Connectez les deux comptes, puis lancez « Twinseat : activer ».",
+  "diag.reglage.autre": "Réglé sur le lanceur d'un autre programme : Twinseat n'y touche pas, et les comptes par fenêtre sont en pause.",
+  "diag.dossier.ok": "Présent ({chemin}).",
+  "diag.dossier.absent": "Absent ({chemin}).",
+  "diag.dossier.autre": "Autre chose qu'un dossier se trouve à {chemin} : laissé tel quel.",
+  "diag.fiche.ok": "Présent, mode 600.",
+  "diag.fiche.absente": "Absent : Claude le crée à la connexion du compte.",
+  "diag.fiche.droits": "Présent, mais en mode {mode} au lieu de 600.",
+  "diag.fiche.autre": "Pas un fichier ordinaire : laissé tel quel.",
+  "diag.connecte.oui": "Oui.",
+  "diag.connecte.non": "Non : utilisez « Se connecter » dans le panneau Twinseat.",
+  "diag.liens.ok": "Les {n} liens partagés sont en place.",
+  "diag.liens.dossier": "Ignoré : le dossier du compte est inutilisable (voir plus haut).",
+  "diag.liens.manquants": "{n} manquant(s), à créer : {liste}.",
+  "diag.liens.cibles": "{n} dossier(s) commun(s) manquant(s) dans ~/.claude, à créer : {liste}.",
+  "diag.liens.conflits": "{n} en travers, laissé(s) tel(s) quel(s) (un vrai fichier ou dossier, ou un lien vers ailleurs) : {liste}.",
+  "diag.registre.ok": "Modifiable ({chemin}).",
+  "diag.registre.absent": "Absent ({chemin}).",
+  "diag.registre.autre": "Autre chose qu'un dossier se trouve à {chemin} : laissé tel quel.",
+  "diag.registre.ecriture": "Non modifiable ({chemin}).",
+  "rapport.titre": "Diagnostic Twinseat",
+  "rapport.ligne.twinseat": "Twinseat : {valeur}",
+  "rapport.ligne.vscode": "VS Code : {valeur}",
+  "rapport.ligne.claudeCode": "Extension Claude Code : {valeur}",
+  "rapport.ligne.systeme": "Système : {valeur}",
+  "rapport.ligne.reglage": "Réglage du lanceur : {valeur}",
+  "rapport.ligne.bilan": "Bilan : {ok} en ordre, {warn} avertissement(s), {fail} échec(s)",
+  "rapport.absente": "pas installée",
+  "rapport.reglage.notre": "le lanceur de Twinseat",
+  "rapport.reglage.aucun": "pas réglé",
+  "rapport.reglage.autre": "le lanceur d'un autre programme",
+  "rapport.verifications": "Vérifications",
+  "rapport.pied": "Ce rapport ne contient ni adresse e-mail, ni nom de compte, ni conversation, ni jeton.",
 
   "barre.cinqHeures": "5 h",
   "barre.semaine": "Semaine",
@@ -263,6 +407,7 @@ export const fr: Record<Cle, string> = {
   "web.aucuneNote": "Aucune note de relais pour ce projet. Tapez /relais dans une conversation pour en écrire une.",
   "web.barreAria": "{nom} : {texte}",
   "web.renommer": "Renommer",
+  "web.verifier": "Vérifier l'installation",
 };
 
 export const TABLES: Record<Langue, Record<Cle, string>> = { en, fr };
@@ -279,11 +424,16 @@ export function langue(): Langue {
   return courante;
 }
 
-/** Texte de la langue choisie ; les {variables} sans valeur restent telles quelles. */
-export function t(cle: Cle, variables?: Variables): string {
-  const modele = TABLES[courante][cle];
+/** Texte dans une langue donnée ; les {variables} sans valeur restent telles quelles. */
+export function traduire(l: Langue, cle: Cle, variables?: Variables): string {
+  const modele = TABLES[l][cle];
   if (!variables) return modele;
   return modele.replace(/\{(\w+)\}/g, (brut, nom: string) => (nom in variables ? String(variables[nom]) : brut));
+}
+
+/** Texte de la langue choisie. */
+export function t(cle: Cle, variables?: Variables): string {
+  return traduire(courante, cle, variables);
 }
 
 /** Liste de la langue choisie (jours, mois). */
@@ -301,7 +451,7 @@ export const CLES_WEBVIEW: readonly Cle[] = [
   "web.chargement", "web.cetteFenetre", "web.pasConnecte", "web.indisponible", "web.utiliser", "web.connecter",
   "web.ouverte", "web.rouvrir", "web.reprendreSur", "web.ouvrir", "web.activer", "web.actualiser",
   "web.titreOuvertes", "web.aucuneOuverte", "web.titreRecentes", "web.aucunDossier", "web.aucuneRecente",
-  "web.titreRelais", "web.aucuneNote", "web.barreAria", "web.renommer",
+  "web.titreRelais", "web.aucuneNote", "web.barreAria", "web.renommer", "web.verifier",
 ];
 
 export function textesWebview(): Record<string, string> {

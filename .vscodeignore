@@ -1,7 +1,10 @@
 src/**
 tests/**
 scripts/**
-node_modules/**
+node_modules/jsonc-parser/lib/esm/**
+node_modules/jsonc-parser/**/*.d.ts
+node_modules/jsonc-parser/CHANGELOG.md
+node_modules/jsonc-parser/SECURITY.md
 tsconfig.json
 .gitignore
 *.vsix

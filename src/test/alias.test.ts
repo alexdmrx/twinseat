@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ajouterAlias, aliasPresents, detecterShell, fichierShell, LIGNES_ALIAS, planAlias } from "../installation";
+import { ajouterAlias, aliasPresents, detecterShell, fichierConseille, fichierShell, LIGNES_ALIAS, planAlias } from "../installation";
 
 // Ancien nom du produit, écrit dans le bloc par la version 0.2 (reconnu pour ne pas le doubler).
 const ANCIEN_NOM = ["Comptes", "Claude"].join(" ");
@@ -40,13 +40,13 @@ test("fichierShell : bash sous Linux → ~/.bashrc, même si ~/.bash_profile exi
   assert.equal(fichierShell("bash", h, "linux"), path.join(h, ".bashrc")); // les deux
 });
 
-test("fichierShell : bash sous macOS → ~/.bash_profile s'il existe, sinon ~/.bashrc s'il existe, sinon ~/.bash_profile", () => {
+test("fichierShell : bash sous macOS → ~/.bash_profile SEULEMENT s'il existe déjà ; sinon rien (jamais ~/.bashrc, jamais de création)", () => {
   const sans = maison();
-  assert.equal(fichierShell("bash", sans, "darwin"), path.join(sans, ".bash_profile")); // aucun fichier
+  assert.equal(fichierShell("bash", sans, "darwin"), undefined); // aucun fichier : le créer pourrait masquer ~/.profile
 
   const rcSeul = maison();
   fs.writeFileSync(path.join(rcSeul, ".bashrc"), "");
-  assert.equal(fichierShell("bash", rcSeul, "darwin"), path.join(rcSeul, ".bashrc")); // .bashrc seul
+  assert.equal(fichierShell("bash", rcSeul, "darwin"), undefined); // .bashrc seul : un shell de connexion ne le lit pas
 
   const profilSeul = maison();
   fs.writeFileSync(path.join(profilSeul, ".bash_profile"), "");
@@ -56,12 +56,37 @@ test("fichierShell : bash sous macOS → ~/.bash_profile s'il existe, sinon ~/.b
   fs.writeFileSync(path.join(deux, ".bash_profile"), "");
   fs.writeFileSync(path.join(deux, ".bashrc"), "");
   assert.equal(fichierShell("bash", deux, "darwin"), path.join(deux, ".bash_profile")); // les deux
+
+  const profile = maison();
+  fs.writeFileSync(path.join(profile, ".profile"), "");
+  assert.equal(fichierShell("bash", profile, "darwin"), undefined); // ~/.profile seul : on ne crée pas ~/.bash_profile à côté
 });
 
 test("fichierShell : sans plateforme donnée, celle du processus", () => {
   const h = maison();
-  const attendu = process.platform === "darwin" ? ".bash_profile" : ".bashrc";
-  assert.equal(fichierShell("bash", h), path.join(h, attendu));
+  assert.equal(fichierShell("bash", h), process.platform === "darwin" ? undefined : path.join(h, ".bashrc"));
+});
+
+test("fichierConseille : le fichier que bash lit sous macOS (le premier qui existe parmi .bash_profile, .bash_login, .profile), sinon ~/.bash_profile", () => {
+  const sans = maison();
+  assert.equal(fichierConseille(sans), "~/.bash_profile");
+  fs.writeFileSync(path.join(sans, ".bashrc"), "");
+  assert.equal(fichierConseille(sans), "~/.bash_profile", ".bashrc n'est pas lu par un shell de connexion");
+
+  const profile = maison();
+  fs.writeFileSync(path.join(profile, ".profile"), "");
+  assert.equal(fichierConseille(profile), "~/.profile");
+
+  const login = maison();
+  fs.writeFileSync(path.join(login, ".profile"), "");
+  fs.writeFileSync(path.join(login, ".bash_login"), "");
+  assert.equal(fichierConseille(login), "~/.bash_login");
+
+  const profil = maison();
+  fs.writeFileSync(path.join(profil, ".profile"), "");
+  fs.writeFileSync(path.join(profil, ".bash_profile"), "");
+  assert.equal(fichierConseille(profil), "~/.bash_profile");
+  assert.deepEqual(fs.readdirSync(sans).sort(), [".bashrc"], "rien n'est créé");
 });
 
 test("fichierShell : ne crée ni ne modifie rien", () => {
@@ -69,6 +94,7 @@ test("fichierShell : ne crée ni ne modifie rien", () => {
   fichierShell("bash", h, "darwin");
   fichierShell("bash", h, "linux");
   fichierShell("zsh", h, "darwin");
+  fichierConseille(h);
   assert.deepEqual(fs.readdirSync(h), []);
 });
 
@@ -94,23 +120,22 @@ test("ajouterAlias : fichier zsh existant → bloc ajouté, contenu d'origine in
   assert.match(sortie, /comptes\/B/);
 });
 
-test("ajouterAlias : fichier bash absent → créé avec le seul bloc (Linux : .bashrc, macOS : .bash_profile)", () => {
-  for (const [plateforme, nom] of [["linux", ".bashrc"], ["darwin", ".bash_profile"]]) {
-    const h = maison();
-    const f = fichierShell("bash", h, plateforme);
-    assert.equal(fs.existsSync(f), false);
-    assert.equal(ajouterAlias(f), true);
-    const texte = fs.readFileSync(f, "utf8");
-    for (const l of LIGNES_ALIAS) assert.ok(texte.includes(l));
-    assert.deepEqual(fs.readdirSync(h), [nom], plateforme);
-  }
+test("ajouterAlias : fichier bash absent sous Linux → ~/.bashrc créé avec le seul bloc", () => {
+  const h = maison();
+  const f = fichierShell("bash", h, "linux") as string;
+  assert.equal(f, path.join(h, ".bashrc"));
+  assert.equal(fs.existsSync(f), false);
+  assert.equal(ajouterAlias(f), true);
+  const texte = fs.readFileSync(f, "utf8");
+  for (const l of LIGNES_ALIAS) assert.ok(texte.includes(l));
+  assert.deepEqual(fs.readdirSync(h), [".bashrc"]);
 });
 
 test("ajouterAlias : bash sous macOS avec ~/.bash_profile → le bloc y est ajouté, ~/.bashrc intact", () => {
   const h = maison();
   fs.writeFileSync(path.join(h, ".bash_profile"), "export A=1\n");
   fs.writeFileSync(path.join(h, ".bashrc"), "export B=2\n");
-  assert.equal(ajouterAlias(fichierShell("bash", h, "darwin")), true);
+  assert.equal(ajouterAlias(fichierShell("bash", h, "darwin") as string), true);
   assert.ok(fs.readFileSync(path.join(h, ".bash_profile"), "utf8").includes(LIGNES_ALIAS[0]));
   assert.equal(fs.readFileSync(path.join(h, ".bashrc"), "utf8"), "export B=2\n");
 });
@@ -146,16 +171,25 @@ test("planAlias : zsh et bash → écrire dans le bon fichier ; déjà fait → 
   assert.deepEqual(planAlias("/bin/zsh", h, "linux"), { action: "ecrire", shell: "zsh", fichier: path.join(h, ".zshrc"), dejaFait: false });
 });
 
-test("planAlias : sous macOS, bash vise ~/.bash_profile (ou ~/.bashrc s'il est seul) ; zsh reste ~/.zshrc", () => {
+test("planAlias : sous macOS, bash n'écrit que dans un ~/.bash_profile qui existe ; sinon on copie les lignes en disant dans quel fichier les mettre ; zsh reste ~/.zshrc", () => {
   const h = maison();
-  assert.deepEqual(planAlias("/bin/bash", h, "darwin"), { action: "ecrire", shell: "bash", fichier: path.join(h, ".bash_profile"), dejaFait: false });
   assert.deepEqual(planAlias("/bin/zsh", h, "darwin"), { action: "ecrire", shell: "zsh", fichier: path.join(h, ".zshrc"), dejaFait: false });
+
+  // aucun fichier bash : rien n'est créé, on dit où coller
+  assert.deepEqual(planAlias("/bin/bash", h, "darwin"), { action: "copier", lignes: LIGNES_ALIAS, fichierConseille: "~/.bash_profile" });
+  // ~/.bashrc seul : jamais écrit (un shell de connexion ne le lit pas), toujours rien de créé
   fs.writeFileSync(path.join(h, ".bashrc"), "");
-  assert.equal((planAlias("/bin/bash", h, "darwin") as { fichier: string }).fichier, path.join(h, ".bashrc"));
-  ajouterAlias(path.join(h, ".bashrc"));
-  assert.equal((planAlias("/bin/bash", h, "darwin") as { dejaFait: boolean }).dejaFait, true);
+  assert.deepEqual(planAlias("/bin/bash", h, "darwin"), { action: "copier", lignes: LIGNES_ALIAS, fichierConseille: "~/.bash_profile" });
+  // ~/.profile existe : c'est lui que bash lit, c'est lui qu'on nomme ; ~/.bash_profile n'est pas créé à côté
+  fs.writeFileSync(path.join(h, ".profile"), "");
+  assert.deepEqual(planAlias("/bin/bash", h, "darwin"), { action: "copier", lignes: LIGNES_ALIAS, fichierConseille: "~/.profile" });
+  assert.deepEqual(fs.readdirSync(h).sort(), [".bashrc", ".profile"]);
+  assert.equal(fs.readFileSync(path.join(h, ".bashrc"), "utf8"), "");
+  // ~/.bash_profile existe : on y écrit
   fs.writeFileSync(path.join(h, ".bash_profile"), "");
   assert.deepEqual(planAlias("/bin/bash", h, "darwin"), { action: "ecrire", shell: "bash", fichier: path.join(h, ".bash_profile"), dejaFait: false });
+  ajouterAlias(path.join(h, ".bash_profile"));
+  assert.equal((planAlias("/bin/bash", h, "darwin") as { dejaFait: boolean }).dejaFait, true);
 });
 
 test("planAlias : shell inconnu ou absent → copier les lignes, rien n'est écrit", () => {
@@ -165,6 +199,7 @@ test("planAlias : shell inconnu ou absent → copier les lignes, rien n'est écr
       const p = planAlias(s, h, plateforme);
       assert.equal(p.action, "copier", `${plateforme} ${String(s)}`);
       assert.deepEqual(p.action === "copier" ? p.lignes : [], LIGNES_ALIAS);
+      assert.equal(p.action === "copier" ? p.fichierConseille : "x", undefined, "pas de fichier conseillé : le shell est inconnu");
     }
   }
   assert.deepEqual(fs.readdirSync(h), []); // planAlias lui-même n'écrit jamais

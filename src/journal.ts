@@ -12,3 +12,12 @@ export function ouvrirJournal(): vscode.OutputChannel {
 export function journal(message: string): void {
   canal?.appendLine(`${new Date().toISOString()} ${message}`);
 }
+
+/** Lignes sans date (un résumé à lire), et la fenêtre du journal montrée sans prendre le focus. */
+export function journalBrut(lignes: string): void {
+  canal?.appendLine(lignes);
+}
+
+export function afficherJournal(): void {
+  canal?.show(true);
+}
