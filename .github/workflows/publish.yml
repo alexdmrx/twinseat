@@ -1,0 +1,40 @@
+name: publish
+
+# Publishes Twinseat to the VS Code Marketplace with Trusted Publishing (OIDC):
+# no token is stored anywhere. The Marketplace publisher "alexdmrx" trusts this
+# exact workflow file of alexdmrx/twinseat. Runs on a published GitHub release,
+# or by hand.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  marketplace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # lets the job request the OIDC token the Marketplace exchanges
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test before publishing
+        run: npm test
+
+      - name: Publish to the VS Code Marketplace
+        run: npx --yes @vscode/vsce@4.1.1 publish --oidc --allow-star-activation
