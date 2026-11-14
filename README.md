@@ -198,6 +198,10 @@ sh scripts/compat-check.sh <claude-code-extension-dir> <claude-binary>
 
 I specified, tested and reviewed it. Most of the code was written with Claude Code. Before each release, the code and these docs went through adversarial reviews.
 
+## Author
+
+Built by Alexis Demarecaux ([@alexdmrx](https://github.com/alexdmrx)) at [Onyri Strategy](https://onyristrategy.com) ([@onyri-strategy](https://github.com/onyri-strategy)).
+
 ## License
 
 [MIT](./LICENSE). Not affiliated with Anthropic. “Claude” and “Claude Code” are trademarks of Anthropic.
